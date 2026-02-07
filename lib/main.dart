@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
+import 'theme/app_theme.dart';
 import 'screens/app_shell.dart';
 import 'screens/plan_screen.dart';
 import 'screens/checkin_screen.dart';
@@ -18,10 +19,10 @@ import 'screens/settings_screen.dart';
 import 'screens/injury_settings_screen.dart';
 import 'screens/notification_settings_screen.dart';
 import 'services/notification_service.dart';
-import 'state/providers.dart';
 import 'screens/edit_profile_screen.dart';
-import 'services/analytics_service.dart';
-
+import 'screens/workout_coach_screen.dart';
+import 'screens/guided_setup_flow_screen.dart';
+import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -41,11 +42,8 @@ class PrimeFormApp extends ConsumerWidget {
     return MaterialApp(
       title: 'PrimeForm',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: const AppInitializer(),
+      theme: AppTheme.lightTheme,
+      home: const SplashScreen(),
       routes: {
         '/home': (context) => const AppShell(),
         '/onboarding': (context) => const OnboardingScreen(),
@@ -62,60 +60,10 @@ class PrimeFormApp extends ConsumerWidget {
         '/settings/injuries': (context) => const InjurySettingsScreen(),
         '/settings/notifications': (context) => const NotificationSettingsScreen(),
         '/edit-profile': (context) => const EditProfileScreen(),
+        '/workout-coach': (context) => const WorkoutCoachScreen(),
+        '/guided-setup': (context) => const GuidedSetupFlowScreen(),
       },
     );
   }
 }
 
-/// Checks if user profile exists and routes accordingly
-class AppInitializer extends ConsumerWidget {
-  const AppInitializer({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Track app opened
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final analytics = AnalyticsService();
-      analytics.logAppOpened();
-    });
-    
-    final profileAsync = ref.watch(userProfileProvider);
-
-    return profileAsync.when(
-      loading: () => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (e, _) => Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Error loading app: $e'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(userProfileProvider),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      data: (profile) {
-        // If no profile exists, show onboarding
-        if (profile == null) {
-          return const OnboardingScreen();
-        }
-
-        // Setup notifications based on profile
-        NotificationService().setupNotifications(profile);
-
-        // Profile exists, show app shell with bottom nav
-        return const AppShell();
-      },
-    );
-  }
-}

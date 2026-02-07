@@ -1,0 +1,59 @@
+<svg width="800" height="300" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo Symbol -->
+  <g transform="translate(70, 50)">
+    <!-- Abstract feminine form representing strength and flow -->
+    <circle cx="100" cy="100" r="95" fill="#F8F6F4" opacity="0.2"/>
+    
+    <!-- Central figure -->
+    <path d="M 100 40 Q 70 55 70 85 Q 70 110 85 125 Q 95 135 100 135 Q 105 135 115 125 Q 130 110 130 85 Q 130 55 100 40 Z" 
+          fill="#8B9E8D" 
+          opacity="0.9"/>
+    
+    <!-- Movement/growth lines -->
+    <path d="M 100 135 Q 85 160 78 190 Q 75 205 82 220" 
+          stroke="#8B9E8D" 
+          stroke-width="6" 
+          fill="none" 
+          stroke-linecap="round"
+          opacity="0.75"/>
+    
+    <path d="M 100 135 Q 115 160 122 190 Q 125 205 118 220" 
+          stroke="#8B9E8D" 
+          stroke-width="6" 
+          fill="none" 
+          stroke-linecap="round"
+          opacity="0.75"/>
+    
+    <!-- Cycle phase dots -->
+    <circle cx="50" cy="100" r="4" fill="#C4A57B" opacity="0.6"/>
+    <circle cx="62" cy="108" r="3.5" fill="#C4A57B" opacity="0.5"/>
+    <circle cx="74" cy="114" r="3" fill="#C4A57B" opacity="0.4"/>
+    
+    <circle cx="150" cy="100" r="4" fill="#C4A57B" opacity="0.6"/>
+    <circle cx="138" cy="108" r="3.5" fill="#C4A57B" opacity="0.5"/>
+    <circle cx="126" cy="114" r="3" fill="#C4A57B" opacity="0.4"/>
+  </g>
+  
+  <!-- Wordmark -->
+  <g transform="translate(280, 150)">
+    <!-- PrimeForm text -->
+    <text x="0" y="0" 
+          font-family="'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" 
+          font-size="72" 
+          font-weight="500"
+          fill="#2C3531"
+          letter-spacing="-1">
+      Prime<tspan font-weight="300">Form</tspan>
+    </text>
+    
+    <!-- Tagline -->
+    <text x="2" y="35" 
+          font-family="'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" 
+          font-size="16" 
+          font-weight="300"
+          fill="#6B7B75"
+          letter-spacing="2">
+      CONSISTENCY OVER CONFUSION
+    </text>
+  </g>
+</svg>

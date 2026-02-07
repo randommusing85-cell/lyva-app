@@ -48,7 +48,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.primeform_app_fixed"
-        minSdk = flutter.minSdkVersion
+        minSdk = 26
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName

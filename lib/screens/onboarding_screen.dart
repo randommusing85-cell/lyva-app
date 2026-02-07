@@ -16,6 +16,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  final _nameCtrl = TextEditingController();
   final _ageCtrl = TextEditingController(text: '30');
   final _heightCtrl = TextEditingController(text: '170');
   final _weightCtrl = TextEditingController(text: '70');
@@ -55,6 +56,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _ageCtrl.dispose();
     _heightCtrl.dispose();
     _weightCtrl.dispose();
@@ -109,6 +111,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     try {
       final profile = UserProfile()
+        ..name = _nameCtrl.text.trim()
+        ..lastLoginAt = DateTime.now()
         ..age = int.parse(_ageCtrl.text.trim())
         ..sex = _sex
         ..heightCm = int.parse(_heightCtrl.text.trim())
@@ -251,6 +255,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
               // Basic Info Section
               Text('Basic Information', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Your Name',
+                  hintText: 'e.g. Sarah',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Please enter your name';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 12),
 
               TextFormField(

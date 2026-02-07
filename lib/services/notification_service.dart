@@ -74,7 +74,7 @@ class NotificationService {
       return granted ?? false;
     }
 
-    return true;
+    return false;
   }
 
   /// Schedule daily check-in reminder

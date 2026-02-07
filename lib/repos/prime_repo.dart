@@ -9,6 +9,7 @@ import 'package:primeform_app/models/prime_plan.dart';
 import 'package:primeform_app/models/workout_template_doc.dart';
 import 'package:primeform_app/models/workout_session_doc.dart';
 import 'package:primeform_app/models/meal_log.dart';
+import 'package:primeform_app/models/food_item.dart';
 
 class PrimeRepo {
   /* =========================
@@ -126,7 +127,7 @@ class PrimeRepo {
     // Group by date
     final Map<String, List<MealLog>> byDate = {};
     for (final meal in meals) {
-      final dateKey = '${meal.ts.year}-${meal.ts.month}-${meal.ts.day}';
+      final dateKey = '${meal.ts.year}-${meal.ts.month.toString().padLeft(2, '0')}-${meal.ts.day.toString().padLeft(2, '0')}';
       byDate.putIfAbsent(dateKey, () => []).add(meal);
     }
     
@@ -163,6 +164,35 @@ class PrimeRepo {
     totals.sort((a, b) => b.date.compareTo(a.date));
     
     return totals;
+  }
+
+  /* =========================
+   * FOOD ITEM DATABASE
+   * ========================= */
+
+  /// Search food items by name (case-insensitive contains)
+  Future<List<FoodItem>> searchFoodItems(String query) async {
+    final isar = await IsarDb.instance();
+    return isar.foodItems
+        .filter()
+        .nameContains(query, caseSensitive: false)
+        .sortByName()
+        .limit(20)
+        .findAll();
+  }
+
+  /// Look up a food item by barcode
+  Future<FoodItem?> getFoodByBarcode(String barcode) async {
+    final isar = await IsarDb.instance();
+    return isar.foodItems.filter().barcodeEqualTo(barcode).findFirst();
+  }
+
+  /// Save or update a food item (upserts on barcode uniqueness)
+  Future<void> saveFoodItem(FoodItem item) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.foodItems.put(item);
+    });
   }
 
   /* =========================
@@ -222,6 +252,19 @@ class PrimeRepo {
     return isar.workoutTemplateDocs.where().sortByCreatedAtDesc().findFirst();
   }
 
+  /// Update an existing workout template's JSON (for exercise customization)
+  Future<void> updateWorkoutTemplateJson(Id templateId, String newJson) async {
+    final isar = await IsarDb.instance();
+    final doc = await isar.workoutTemplateDocs.get(templateId);
+    if (doc == null) return;
+
+    doc.json = newJson;
+
+    await isar.writeTxn(() async {
+      await isar.workoutTemplateDocs.put(doc);
+    });
+  }
+
   /* =========================
    * CLOUD FUNCTIONS
    * ========================= */
@@ -258,6 +301,9 @@ class PrimeRepo {
       'constraints': finalConstraints,
     });
 
+    if (res.data is! Map) {
+      throw Exception('Invalid response format from workout generation');
+    }
     return Map<String, dynamic>.from(res.data as Map);
   }
 

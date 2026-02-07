@@ -118,8 +118,9 @@ class SetupGuideScreen extends ConsumerWidget {
               // Action Buttons
               FilledButton(
                 onPressed: () {
+                  // Navigate to guided setup flow
                   Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/',
+                    '/guided-setup',
                     (route) => false,
                   );
                 },

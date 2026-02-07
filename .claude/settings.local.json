@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter pub run build_runner build:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(dir \"C:\\\\Users\\\\samji\\\\OneDrive\\\\Desktop\\\\Dev\\\\primeform\\\\primeform_app\\\\functions\")",
+      "Bash(dir:*)",
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git pull:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(flutter run:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter devices:*)",
+      "Bash(flutter --version:*)",
+      "Bash(flutter pub add:*)",
+      "Bash(dart run build_runner:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(where:*)",
+      "Bash(python:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(dart run:*)",
+      "WebFetch(domain:pub.dev)",
+      "Bash(flutter build:*)",
+      "Bash(gradlew:*)",
+      "Bash(.gradlew.bat:*)",
+      "Bash(set GRADLE_USER_HOME=C:gradle-home)",
+      "Bash(rd:*)",
+      "Bash(cmd /c \"rd /s /q C:\\\\Users\\\\samji\\\\OneDrive\\\\Desktop\\\\Dev\\\\primeform\\\\primeform_app_fixed\\\\android\\\\.gradle\")",
+      "Bash(cmd /c \"rd /s /q C:\\\\Users\\\\samji\\\\OneDrive\\\\Desktop\\\\Dev\\\\primeform\\\\primeform_app_fixed\\\\android\\\\.gradle 2>nul\")"
+    ]
+  }
+}

@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
 import '../models/prime_plan.dart';
 import '../models/workout_template_doc.dart';
+import '../theme/app_theme.dart';
 
 /// Unified Plans tab showing both Nutrition and Workout plans
+/// Redesigned to match Figma designs
 class PlansTabScreen extends ConsumerWidget {
   const PlansTabScreen({super.key});
 
@@ -14,440 +16,304 @@ class PlansTabScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Plans'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Philosophy reminder at top
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.primary.withOpacity(0.3),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+
+              // Header
+              Text(
+                'My Plans',
+                style: theme.textTheme.displayMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  color: theme.colorScheme.primary,
-                  size: 20,
+              const SizedBox(height: 4),
+              Text(
+                'Your personalized journey',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Plans are locked for 14 days to build consistency. Trust the process.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Nutrition Plan Card
+              const _NutritionPlanCard(),
+
+              const SizedBox(height: 20),
+
+              // Workout Plan Card
+              const _WorkoutPlanCard(),
+
+              const SizedBox(height: 32),
+            ],
           ),
-
-          const SizedBox(height: 24),
-
-          // Nutrition Plan Section
-          const _NutritionPlanSection(),
-
-          const SizedBox(height: 32),
-
-          const Divider(),
-
-          const SizedBox(height: 32),
-
-          // Workout Plan Section
-          const _WorkoutPlanSection(),
-
-          const SizedBox(height: 32),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ===== NUTRITION PLAN SECTION =====
-class _NutritionPlanSection extends ConsumerWidget {
-  const _NutritionPlanSection();
+// ===== NUTRITION PLAN CARD =====
+class _NutritionPlanCard extends ConsumerWidget {
+  const _NutritionPlanCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final planAsync = ref.watch(activePlanProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.restaurant_menu,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Nutrition Plan',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: planAsync.when(
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: CircularProgressIndicator(),
+          ),
         ),
-        const SizedBox(height: 16),
-
-        planAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
-          data: (plan) {
-            if (plan == null) {
-              return Column(
-                children: [
-                  Text(
-                    'No nutrition plan yet',
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Create your first plan to get started',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/plan'),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create Nutrition Plan'),
-                  ),
-                ],
-              );
-            }
-
-            return _NutritionPlanContent(plan: plan);
-          },
-        ),
-      ],
+        error: (e, _) => Text('Error: $e'),
+        data: (plan) {
+          if (plan == null) {
+            return _EmptyPlanContent(
+              icon: Icons.restaurant_menu,
+              title: 'Nutrition Plan',
+              subtitle: 'Create your personalized meal plan',
+              buttonText: 'Create Plan',
+              onTap: () => Navigator.pushNamed(context, '/plan'),
+            );
+          }
+          return _NutritionPlanContent(plan: plan);
+        },
+      ),
     );
   }
 }
 
-class _NutritionPlanContent extends ConsumerWidget {
+class _NutritionPlanContent extends StatelessWidget {
   final PrimePlan plan;
 
   const _NutritionPlanContent({required this.plan});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     final daysSinceCreation = DateTime.now().difference(plan.createdAt).inDays;
-    final canRegenerate = daysSinceCreation >= 14;
-    final daysRemaining = canRegenerate ? 0 : 14 - daysSinceCreation;
+    final daysRemaining = (14 - daysSinceCreation).clamp(0, 14);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Plan summary card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        // Header row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.restaurant_menu,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'Nutrition',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     Text(
                       plan.planName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                    ),
-                    if (!canRegenerate)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.lock_clock,
-                              size: 14,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${daysRemaining}d',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Calories (prominent)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${plan.calories} kcal',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                      Text(
-                        ' / day',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Macros row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MacroChip(
-                        label: 'Protein',
-                        value: '${plan.proteinG}g',
-                        color: Colors.red,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _MacroChip(
-                        label: 'Carbs',
-                        value: '${plan.carbsG}g',
-                        color: Colors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _MacroChip(
-                        label: 'Fat',
-                        value: '${plan.fatG}g',
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Steps
-                Row(
-                  children: [
-                    Icon(
-                      Icons.directions_walk,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${plan.stepTarget} steps/day',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
-                    Icon(
-                      Icons.fitness_center,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${plan.trainingDays} training days/week',
-                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Action buttons
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(context, '/myplan'),
-                icon: const Icon(Icons.smart_toy, size: 18),
-                label: const Text('AI Coach'),
+            // Days badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(context, '/nutrition'),
-                icon: const Icon(Icons.restaurant, size: 18),
-                label: const Text('Log Meals'),
+              child: Text(
+                daysRemaining > 0 ? '$daysRemaining days' : 'Unlocked',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
 
-        FilledButton.tonal(
-          onPressed: () => Navigator.pushNamed(context, '/plan'),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+        // Large calorie display
+        Center(
+          child: Column(
             children: [
-              if (!canRegenerate) const Icon(Icons.lock_outline, size: 18),
-              if (!canRegenerate) const SizedBox(width: 8),
               Text(
-                canRegenerate
-                    ? 'Regenerate Plan'
-                    : 'Regenerate (${daysRemaining}d lock)',
+                '${plan.calories}',
+                style: theme.textTheme.displayLarge?.copyWith(
+                  fontSize: 56,
+                  fontWeight: FontWeight.w300,
+                  color: AppColors.textPrimary,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'calories per day',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Macro boxes row
+        Row(
+          children: [
+            Expanded(
+              child: _MacroBox(
+                value: '${plan.proteinG}',
+                label: 'Protein',
+                color: AppColors.proteinGreen,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MacroBox(
+                value: '${plan.carbsG}',
+                label: 'Carbs',
+                color: AppColors.carbsYellow,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MacroBox(
+                value: '${plan.fatG}',
+                label: 'Fat',
+                color: AppColors.fatPink,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // Action buttons row
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/myplan'),
+                icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                label: const Text('AI Coach'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.textMuted),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/nutrition'),
+                icon: const Icon(Icons.restaurant, size: 18),
+                label: const Text('Log Meal'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _MacroChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _MacroChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: color.withOpacity(0.8),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ===== WORKOUT PLAN SECTION =====
-class _WorkoutPlanSection extends ConsumerWidget {
-  const _WorkoutPlanSection();
+// ===== WORKOUT PLAN CARD =====
+class _WorkoutPlanCard extends ConsumerWidget {
+  const _WorkoutPlanCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final templateAsync = ref.watch(latestWorkoutTemplateProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.fitness_center,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Workout Plan',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: templateAsync.when(
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: CircularProgressIndicator(),
+          ),
         ),
-        const SizedBox(height: 16),
-
-        templateAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
-          data: (template) {
-            if (template == null) {
-              return Column(
-                children: [
-                  Text(
-                    'No workout plan yet',
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Create your first plan to get started',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/workout'),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create Workout Plan'),
-                  ),
-                ],
-              );
-            }
-
-            return _WorkoutPlanContent(template: template);
-          },
-        ),
-      ],
+        error: (e, _) => Text('Error: $e'),
+        data: (template) {
+          if (template == null) {
+            return _EmptyPlanContent(
+              icon: Icons.fitness_center,
+              title: 'Workout Plan',
+              subtitle: 'Create your personalized workout plan',
+              buttonText: 'Create Plan',
+              onTap: () => Navigator.pushNamed(context, '/workout'),
+            );
+          }
+          return _WorkoutPlanContent(template: template);
+        },
+      ),
     );
   }
 }
@@ -461,169 +327,262 @@ class _WorkoutPlanContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final daysSinceCreation =
-        DateTime.now().difference(template.createdAt).inDays;
-    final canRegenerate = daysSinceCreation >= 14;
-    final daysRemaining = canRegenerate ? 0 : 14 - daysSinceCreation;
+    final daysSinceCreation = DateTime.now().difference(template.createdAt).inDays;
+    final daysRemaining = (14 - daysSinceCreation).clamp(0, 14);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Plan summary card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        template.planName,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    if (!canRegenerate)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.lock_clock,
-                              size: 14,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${daysRemaining}d',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${template.daysPerWeek} days per week',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
-                    Icon(
-                      Icons.signal_cellular_alt,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _getLevelText(template.level),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
-                    Icon(
-                      Icons.handyman,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _getEquipmentText(template.equipment),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Action buttons
-        OutlinedButton.icon(
-          onPressed: () => Navigator.pushNamed(context, '/my-workout'),
-          icon: const Icon(Icons.list, size: 18),
-          label: const Text('View Full Plan'),
-        ),
-
-        const SizedBox(height: 12),
-
-        FilledButton.tonal(
-          onPressed: () => Navigator.pushNamed(context, '/workout'),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (!canRegenerate) const Icon(Icons.lock_outline, size: 18),
-              if (!canRegenerate) const SizedBox(width: 8),
-              Text(
-                canRegenerate
-                    ? 'Regenerate Plan'
-                    : 'Regenerate (${daysRemaining}d lock)',
+        // Header row
+        Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
-          ),
+              child: const Icon(
+                Icons.fitness_center,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Workout',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    template.planName,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Days badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                daysRemaining > 0 ? '$daysRemaining days' : 'Unlocked',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // Stats row
+        Row(
+          children: [
+            Expanded(
+              child: _StatBox(
+                value: '${template.daysPerWeek}',
+                label: 'days per week',
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _StatBox(
+                value: '45',  // Default session duration
+                label: 'min sessions',
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // Action buttons row (matching nutrition section)
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/workout-coach'),
+                icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                label: const Text('AI Coach'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.textMuted),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/my-workout'),
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('View Plan'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
+}
 
-  String _getLevelText(String level) {
-    switch (level) {
-      case 'beginner':
-        return 'Beginner';
-      case 'intermediate':
-        return 'Intermediate';
-      case 'advanced':
-        return 'Advanced';
-      default:
-        return level;
-    }
+// ===== SHARED COMPONENTS =====
+
+class _MacroBox extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+
+  const _MacroBox({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
 
-  String _getEquipmentText(String equipment) {
-    switch (equipment) {
-      case 'gym':
-        return 'Full Gym';
-      case 'home_dumbbells':
-        return 'Home (Dumbbells)';
-      case 'calisthenics':
-        return 'Bodyweight Only';
-      default:
-        return equipment;
-    }
+class _StatBox extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _StatBox({
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyPlanContent extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String buttonText;
+  final VoidCallback onTap;
+
+  const _EmptyPlanContent({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.buttonText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 28),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: onTap,
+          child: Text(buttonText),
+        ),
+      ],
+    );
   }
 }

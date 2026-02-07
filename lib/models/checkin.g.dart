@@ -48,7 +48,21 @@ const CheckInSchema = CollectionSchema(
   deserialize: _checkInDeserialize,
   deserializeProp: _checkInDeserializeProp,
   idName: r'id',
-  indexes: {},
+  indexes: {
+    r'ts': IndexSchema(
+      id: -1208453773318402379,
+      name: r'ts',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'ts',
+          type: IndexType.value,
+          caseSensitive: false,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _checkInGetId,
@@ -141,6 +155,14 @@ extension CheckInQueryWhereSort on QueryBuilder<CheckIn, CheckIn, QWhere> {
       return query.addWhereClause(const IdWhereClause.any());
     });
   }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterWhere> anyTs() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'ts'),
+      );
+    });
+  }
 }
 
 extension CheckInQueryWhere on QueryBuilder<CheckIn, CheckIn, QWhereClause> {
@@ -204,6 +226,94 @@ extension CheckInQueryWhere on QueryBuilder<CheckIn, CheckIn, QWhereClause> {
         lower: lowerId,
         includeLower: includeLower,
         upper: upperId,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterWhereClause> tsEqualTo(DateTime ts) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'ts',
+        value: [ts],
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterWhereClause> tsNotEqualTo(DateTime ts) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ts',
+              lower: [],
+              upper: [ts],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ts',
+              lower: [ts],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ts',
+              lower: [ts],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ts',
+              lower: [],
+              upper: [ts],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterWhereClause> tsGreaterThan(
+    DateTime ts, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'ts',
+        lower: [ts],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterWhereClause> tsLessThan(
+    DateTime ts, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'ts',
+        lower: [],
+        upper: [ts],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterWhereClause> tsBetween(
+    DateTime lowerTs,
+    DateTime upperTs, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'ts',
+        lower: [lowerTs],
+        includeLower: includeLower,
+        upper: [upperTs],
         includeUpper: includeUpper,
       ));
     });

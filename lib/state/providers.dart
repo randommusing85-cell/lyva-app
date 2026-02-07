@@ -8,6 +8,9 @@ import '../models/workout_session_doc.dart';
 import '../models/user_profile.dart';
 import '../models/meal_log.dart';
 import '../services/analytics_service.dart';
+import '../services/food_api_service.dart';
+import '../services/step_tracking_service.dart';
+import '../models/food_item.dart';
 
 // ============================================================================
 // REPOSITORY PROVIDERS
@@ -159,12 +162,14 @@ DateTime _getStartOfWeek(DateTime date) {
 // Current cycle phase (for cycle-aware training)
 final currentCyclePhaseProvider = FutureProvider.autoDispose<CyclePhase?>((ref) async {
   final profile = await ref.watch(userProfileProvider.future);
-  if (profile?.lastPeriodDate == null || profile?.cycleLength == null) {
+  if (profile == null) return null;
+  final lastPeriod = profile.lastPeriodDate;
+  if (lastPeriod == null || profile.cycleLength == null) {
     return null;
   }
 
   return _calculateCyclePhase(
-    profile!.lastPeriodDate!,
+    lastPeriod,
     profile.cycleLength,
   );
 });
@@ -190,14 +195,16 @@ enum CyclePhase { menstrual, follicular, ovulation, luteal }
 // Post-partum status (for post-partum guidance)
 final postpartumStatusProvider = FutureProvider.autoDispose<PostpartumStatus?>((ref) async {
   final profile = await ref.watch(userProfileProvider.future);
-  if (profile?.deliveryDate == null) return null;
-  
-  final weeksPostpartum = DateTime.now().difference(profile!.deliveryDate!).inDays ~/ 7;
-  
+  if (profile == null) return null;
+  final deliveryDate = profile.deliveryDate;
+  if (deliveryDate == null) return null;
+
+  final weeksPostpartum = DateTime.now().difference(deliveryDate).inDays ~/ 7;
+
   return PostpartumStatus(
     weeksPostpartum: weeksPostpartum,
     medicalClearance: profile.medicalClearance ?? false,
-    deliveryDate: profile.deliveryDate!,
+    deliveryDate: deliveryDate,
   );
 });
 
@@ -226,3 +233,56 @@ class PostpartumStatus {
 // ============================================================================
 
 final analyticsProvider = Provider<AnalyticsService>((ref) => AnalyticsService());
+
+// ============================================================================
+// FOOD DATABASE & API
+// ============================================================================
+
+final foodApiServiceProvider = Provider<FoodApiService>((ref) => FoodApiService());
+
+/// Search local DB first, then fall back to API. Caches API results locally.
+final foodSearchProvider = FutureProvider.autoDispose.family<List<FoodItem>, String>((ref, query) async {
+  if (query.trim().length < 2) return [];
+
+  final repo = ref.read(primeRepoProvider);
+
+  // 1. Search local database
+  final localResults = await repo.searchFoodItems(query);
+  if (localResults.isNotEmpty) return localResults;
+
+  // 2. Fall back to API
+  final api = ref.read(foodApiServiceProvider);
+  final apiResults = await api.searchFoods(query);
+
+  // 3. Cache API results locally
+  for (final item in apiResults) {
+    await repo.saveFoodItem(item);
+  }
+
+  return apiResults;
+});
+
+// ============================================================================
+// STEP TRACKING (Health Platform)
+// ============================================================================
+
+final stepTrackingServiceProvider = Provider<StepTrackingService>(
+  (ref) => StepTrackingService(),
+);
+
+/// Today's step count from Apple Health / Health Connect.
+/// Falls back to 0 if not authorized.
+final todayStepsProvider = FutureProvider.autoDispose<int>((ref) async {
+  final service = ref.read(stepTrackingServiceProvider);
+  final authorized = await service.isAuthorized();
+  if (!authorized) return 0;
+  return service.getTodaySteps();
+});
+
+/// Last 7 days of step data for the trend chart.
+final weeklyStepsProvider = FutureProvider.autoDispose<Map<DateTime, int>>((ref) async {
+  final service = ref.read(stepTrackingServiceProvider);
+  final authorized = await service.isAuthorized();
+  if (!authorized) return {};
+  return service.getWeeklySteps();
+});

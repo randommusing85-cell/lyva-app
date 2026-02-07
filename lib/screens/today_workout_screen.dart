@@ -8,6 +8,7 @@ import '../state/providers.dart';
 import '../services/analytics_service.dart';
 import '../widgets/workout_calendar.dart';
 import '../data/exercise_alternatives.dart';
+import '../theme/app_theme.dart';
 import 'workout_completion_screen.dart';
 
 class TodayWorkoutScreen extends ConsumerStatefulWidget {
@@ -172,12 +173,31 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
     final asyncDayIndex = ref.watch(todayWorkoutDayProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Today's Workout")),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          "Today's Workout",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        centerTitle: false,
+      ),
       body: Stack(
         children: [
           asyncTemplate.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
+            error: (e, _) => const Center(
+              child: Text('Something went wrong loading your workout plan.'),
+            ),
             data: (doc) {
               if (doc == null) {
                 return Center(
@@ -186,11 +206,49 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('No workout plan saved yet.'),
-                        const SizedBox(height: 12),
-                        FilledButton(
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: const Icon(
+                            Icons.fitness_center,
+                            size: 40,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No workout plan saved yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Create a personalized workout plan to get started',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
                           onPressed: () =>
                               Navigator.pushNamed(context, '/workout'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                          ),
                           child: const Text('Create Workout Plan'),
                         ),
                       ],
@@ -215,17 +273,19 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                 );
               }
               final days = rawDays
-                  .map((d) => Map<String, dynamic>.from(d as Map))
+                  .whereType<Map>()
+                  .map((d) => Map<String, dynamic>.from(d))
                   .toList();
 
               // Warm-up protocol (optional display)
               final warmup = template['globalDefaults']?['warmup'];
               final warmupEnabled = warmup is Map && warmup['enabled'] == true;
-              const warmupText = 'Warm-up: 50%×6, 70%×4, 85%×2 (opt)';
 
               return asyncDayIndex.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                error: (e, _) => const Center(
+                  child: Text('Something went wrong loading today\'s workout.'),
+                ),
                 data: (dayIndex) {
                   if (dayIndex == null) {
                     return const Center(child: Text('No workout plan found.'));
@@ -253,7 +313,8 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                     );
                   }
                   final exercises = rawExercises
-                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .whereType<Map>()
+                      .map((e) => Map<String, dynamic>.from(e))
                       .toList();
 
                   // Count checked for summary
@@ -328,51 +389,130 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                   }
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        const SizedBox(height: 8),
+
                         // Workout Calendar
                         WorkoutCalendar(
                           trainingDaysPerWeek: doc.daysPerWeek,
                         ),
-                        const SizedBox(height: 16),
-                        
-                        // Header
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  title,
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  '${doc.planName} • Day $dayIndex of ${doc.daysPerWeek}',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                                if (warmupEnabled) ...[
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'Warm-up sets (main/secondary lifts):',
-                                    style: Theme.of(context).textTheme.titleSmall,
+                        const SizedBox(height: 20),
+
+                        // Header Card with day info
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      'Day $dayIndex of ${doc.daysPerWeek}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    '50%×6, 70%×4, 85%×2 (optional)',
+                                  const Spacer(),
+                                  Text(
+                                    '$checkedCount/${exercises.length}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                doc.planName,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              if (warmupEnabled) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.whatshot,
+                                        size: 16,
+                                        color: AppColors.primary.withOpacity(0.8),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Warm-up: 50% x 6, 70% x 4, 85% x 2',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
-                            ),
+                            ],
                           ),
                         ),
 
+                        const SizedBox(height: 20),
+
+                        // Exercises section header
+                        const Text(
+                          'Exercises',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 12),
 
-                        // Exercises list (now using List.generate instead of ListView.builder)
+                        // Exercises list with numbered badges
                         ...List.generate(exercises.length, (i) {
                           final ex = exercises[i];
 
@@ -395,13 +535,10 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                             if (maxVal is num) repMax = maxVal.toInt();
                           }
                           final repText = (repMin != null && repMax != null)
-                              ? '$repMin–$repMax'
+                              ? '$repMin-$repMax'
                               : '?';
 
                           final liftClass = ex['liftClass']?.toString() ?? 'accessory';
-                          final showWarmup =
-                              (liftClass == 'main' || liftClass == 'secondary') &&
-                                  warmupEnabled;
 
                           // Rest seconds (prefer per-exercise, fallback by class)
                           int restSec = (liftClass == 'main' || liftClass == 'secondary')
@@ -425,139 +562,81 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                           }
 
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Card(
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () => _showAlternativesDialog(
-                                  exerciseKey: key,
-                                  originalName: originalName,
-                                  aiAlternatives: aiAlternatives,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 6,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Checkbox(
-                                        value: checked,
-                                        onChanged: (v) =>
-                                            setState(() => _done[key] = v ?? false),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(top: 6),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      displayName,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleMedium,
-                                                    ),
-                                                  ),
-                                                  if (isSwapped)
-                                                    Icon(
-                                                      Icons.swap_horiz,
-                                                      size: 16,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .primary,
-                                                    ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text('$sets sets × $repText reps'),
-                                              if (isSwapped) ...[
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  'Originally: $originalName',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        fontStyle: FontStyle.italic,
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
-                                                      ),
-                                                ),
-                                              ],
-                                              if (showWarmup && !isSwapped) ...[
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  warmupText,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall,
-                                                ),
-                                              ],
-                                              // Tap hint
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Tap for alternatives',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .labelSmall
-                                                    ?.copyWith(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .primary
-                                                          .withOpacity(0.7),
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      TextButton(
-                                        onPressed: () => _startRest(
-                                          seconds: restSec,
-                                          label: displayName,
-                                        ),
-                                        child: Text('Rest ${restSec}s'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _ExerciseCard(
+                              exerciseNumber: i + 1,
+                              exerciseName: displayName,
+                              originalName: isSwapped ? originalName : null,
+                              sets: sets.toString(),
+                              reps: repText,
+                              restSeconds: restSec,
+                              isCompleted: checked,
+                              isSwapped: isSwapped,
+                              onToggleComplete: () {
+                                setState(() => _done[key] = !checked);
+                              },
+                              onStartRest: () => _startRest(
+                                seconds: restSec,
+                                label: displayName,
+                              ),
+                              onTapAlternatives: () => _showAlternativesDialog(
+                                exerciseKey: key,
+                                originalName: originalName,
+                                aiAlternatives: aiAlternatives,
                               ),
                             ),
                           );
                         }),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
 
                         // Action buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: completeWorkout,
-                                child: const Text('Complete Workout'),
-                              ),
+                        ElevatedButton(
+                          onPressed: completeWorkout,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(width: 12),
-                            OutlinedButton(
-                              onPressed: () => _showSkipWorkoutDialog(
-                                context: context,
-                                dayIndex: dayIndex,
-                                workoutTitle: title,
-                              ),
-                              child: const Text('Skip'),
+                          ),
+                          child: const Text(
+                            'Complete Workout',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: () => _showSkipWorkoutDialog(
+                            context: context,
+                            dayIndex: dayIndex,
+                            workoutTitle: title,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: const BorderSide(
+                              color: AppColors.textMuted,
+                              width: 1,
+                            ),
+                          ),
+                          child: const Text(
+                            'Skip Today',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
 
-                        const SizedBox(height: 80), // Extra space for bottom navigation
+                        const SizedBox(height: 100), // Extra space for bottom navigation
                       ],
                     ),
                   );
@@ -569,33 +648,319 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
           // Rest banner (bottom)
           if (_restLeftSec != null && _restLabel != null)
             Positioned(
-              left: 12,
-              right: 12,
-              bottom: 12,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
+              left: 20,
+              right: 20,
+              bottom: 20,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Center(
                         child: Text(
-                          'Rest • ${_restLabel!} • ${_formatMmSs(_restLeftSec!.clamp(0, 10 * 60))}',
-                          style: Theme.of(context).textTheme.titleSmall,
-                          overflow: TextOverflow.ellipsis,
+                          _formatMmSs((_restLeftSec ?? 0).clamp(0, 10 * 60)),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: _stopRest,
-                        child: const Text('Stop'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Rest Timer',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          Text(
+                            _restLabel!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    TextButton(
+                      onPressed: _stopRest,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: const Text('Skip'),
+                    ),
+                  ],
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Exercise card widget with numbered badge and completion state
+class _ExerciseCard extends StatelessWidget {
+  final int exerciseNumber;
+  final String exerciseName;
+  final String? originalName;
+  final String sets;
+  final String reps;
+  final int restSeconds;
+  final bool isCompleted;
+  final bool isSwapped;
+  final VoidCallback onToggleComplete;
+  final VoidCallback onStartRest;
+  final VoidCallback onTapAlternatives;
+
+  const _ExerciseCard({
+    required this.exerciseNumber,
+    required this.exerciseName,
+    this.originalName,
+    required this.sets,
+    required this.reps,
+    required this.restSeconds,
+    required this.isCompleted,
+    required this.isSwapped,
+    required this.onToggleComplete,
+    required this.onStartRest,
+    required this.onTapAlternatives,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isCompleted
+            ? AppColors.primary.withOpacity(0.05)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: isCompleted
+            ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 1)
+            : null,
+        boxShadow: isCompleted ? null : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTapAlternatives,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Number badge / checkmark
+                GestureDetector(
+                  onTap: onToggleComplete,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isCompleted
+                          ? AppColors.primary
+                          : AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(18),
+                      border: isCompleted
+                          ? null
+                          : Border.all(
+                              color: AppColors.textMuted.withOpacity(0.3),
+                              width: 1,
+                            ),
+                    ),
+                    child: Center(
+                      child: isCompleted
+                          ? const Icon(
+                              Icons.check,
+                              size: 20,
+                              color: Colors.white,
+                            )
+                          : Text(
+                              '$exerciseNumber',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Exercise info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              exerciseName,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: isCompleted
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary,
+                                decoration: isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
+                          ),
+                          if (isSwapped)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Icon(
+                                Icons.swap_horiz,
+                                size: 14,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          _InfoChip(
+                            icon: Icons.repeat,
+                            label: '$sets sets',
+                          ),
+                          const SizedBox(width: 8),
+                          _InfoChip(
+                            icon: Icons.fitness_center,
+                            label: '$reps reps',
+                          ),
+                        ],
+                      ),
+                      if (originalName != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Originally: $originalName',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Rest button
+                IconButton(
+                  onPressed: onStartRest,
+                  icon: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.timer_outlined,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                      Text(
+                        '${restSeconds}s',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  tooltip: 'Start rest timer',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small info chip for sets/reps display
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 12,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );
@@ -618,8 +983,6 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -634,17 +997,20 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Exercise Alternatives',
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Choose an alternative for $originalName',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -664,22 +1030,23 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
+                  color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.swap_horiz,
-                      color: theme.colorScheme.onPrimaryContainer,
+                      color: AppColors.primary,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Currently using: $currentName',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
+                        style: const TextStyle(
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
@@ -692,26 +1059,30 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
             // Reset option (if swapped)
             if (isSwapped)
               ListTile(
+                contentPadding: EdgeInsets.zero,
                 leading: Container(
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer,
+                    color: AppColors.error.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.undo,
-                    color: theme.colorScheme.onErrorContainer,
+                    color: AppColors.error,
                     size: 20,
                   ),
                 ),
-                title: Text(
+                title: const Text(
                   'Reset to Original',
-                  style: theme.textTheme.titleMedium,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 subtitle: Text(
                   'Go back to $originalName',
-                  style: theme.textTheme.bodySmall,
+                  style: const TextStyle(fontSize: 12),
                 ),
                 onTap: () => Navigator.pop(context, '__RESET__'),
               ),
@@ -719,31 +1090,35 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
             if (isSwapped) const Divider(height: 24),
 
             // Alternatives list
-            Text(
+            const Text(
               'Available Alternatives',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 8),
 
             ...alternatives.map((alt) => ListTile(
+              contentPadding: EdgeInsets.zero,
               leading: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer,
+                  color: AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.fitness_center,
-                  color: theme.colorScheme.onSecondaryContainer,
+                  color: AppColors.textSecondary,
                   size: 20,
                 ),
               ),
               title: Text(
                 alt.name,
-                style: theme.textTheme.titleMedium?.copyWith(
+                style: TextStyle(
+                  fontSize: 16,
                   fontWeight: currentName == alt.name
                       ? FontWeight.bold
                       : FontWeight.normal,
@@ -751,12 +1126,12 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
               ),
               subtitle: Text(
                 alt.description,
-                style: theme.textTheme.bodySmall,
+                style: const TextStyle(fontSize: 12),
               ),
               trailing: currentName == alt.name
-                  ? Icon(
+                  ? const Icon(
                       Icons.check_circle,
-                      color: theme.colorScheme.primary,
+                      color: AppColors.primary,
                     )
                   : null,
               onTap: () => Navigator.pop(context, alt.name),
@@ -768,7 +1143,7 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
+                color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -776,14 +1151,15 @@ class _ExerciseAlternativesSheet extends StatelessWidget {
                   Icon(
                     Icons.info_outline,
                     size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: AppColors.textMuted,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Swapping exercises helps you work around equipment availability or comfort level while maintaining similar training benefits.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      'Swapping exercises helps you work around equipment availability or comfort level.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ),
@@ -824,7 +1200,6 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final completionPercent =
         (widget.checkedCount / widget.totalExercises * 100).round();
 
@@ -847,12 +1222,12 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
+                    color: AppColors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.check,
-                    color: theme.colorScheme.onPrimaryContainer,
+                    color: AppColors.primary,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -860,16 +1235,19 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Complete Workout',
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       Text(
                         widget.workoutTitle,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -888,7 +1266,7 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
+                color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -898,14 +1276,18 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
                       children: [
                         Text(
                           '${widget.checkedCount}/${widget.totalExercises}',
-                          style: theme.textTheme.headlineMedium?.copyWith(
+                          style: const TextStyle(
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
+                            color: AppColors.primary,
                           ),
                         ),
-                        Text(
+                        const Text(
                           'Exercises',
-                          style: theme.textTheme.bodySmall,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -913,25 +1295,29 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
                   Container(
                     width: 1,
                     height: 40,
-                    color: theme.colorScheme.outline.withOpacity(0.3),
+                    color: AppColors.textMuted.withOpacity(0.3),
                   ),
                   Expanded(
                     child: Column(
                       children: [
                         Text(
                           '$completionPercent%',
-                          style: theme.textTheme.headlineMedium?.copyWith(
+                          style: TextStyle(
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: completionPercent >= 80
-                                ? Colors.green
+                                ? AppColors.success
                                 : completionPercent >= 50
-                                    ? Colors.orange
-                                    : Colors.red,
+                                    ? AppColors.warning
+                                    : AppColors.error,
                           ),
                         ),
-                        Text(
+                        const Text(
                           'Completed',
-                          style: theme.textTheme.bodySmall,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -943,9 +1329,13 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
             const SizedBox(height: 20),
 
             // Notes field
-            Text(
+            const Text(
               'How did it go? (optional)',
-              style: theme.textTheme.labelLarge,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -953,10 +1343,12 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
               decoration: InputDecoration(
                 hintText:
                     'e.g. Felt strong today, increased weight on squats...',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.edit_note),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
+                fillColor: AppColors.surfaceVariant,
               ),
               maxLines: 3,
             ),
@@ -969,20 +1361,34 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: const Text('Cancel'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   flex: 2,
-                  child: FilledButton.icon(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context, {
                         'notes': _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
                       });
                     },
                     icon: const Icon(Icons.check),
-                    label: const Text('Complete Workout'),
+                    label: const Text('Complete'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -1026,8 +1432,6 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -1047,17 +1451,20 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Skip Workout?',
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         widget.workoutTitle,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -1076,7 +1483,7 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -1084,14 +1491,15 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
                   Icon(
                     Icons.info_outline,
                     size: 20,
-                    color: theme.colorScheme.onPrimaryContainer,
+                    color: AppColors.primary,
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       'It\'s okay to skip sometimes. Consistency over time matters more than perfection.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -1101,9 +1509,13 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
 
             const SizedBox(height: 20),
 
-            Text(
+            const Text(
               'Why are you skipping today?',
-              style: theme.textTheme.labelLarge,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -1125,6 +1537,7 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
                     ],
                   ),
                   selected: isSelected,
+                  selectedColor: AppColors.primary.withOpacity(0.2),
                   onSelected: (selected) {
                     setState(() {
                       _selectedReason = selected ? id : null;
@@ -1139,10 +1552,12 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
               const SizedBox(height: 16),
               TextField(
                 controller: _customReasonCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Tell us more (optional)',
                   hintText: 'What\'s going on?',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 maxLines: 2,
               ),
@@ -1156,12 +1571,18 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: const Text('Cancel'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton(
+                  child: ElevatedButton(
                     onPressed: _selectedReason == null
                         ? null
                         : () {
@@ -1172,6 +1593,15 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
                             }
                             Navigator.pop(context, reason);
                           },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: AppColors.textMuted.withOpacity(0.3),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: const Text('Skip Workout'),
                   ),
                 ),

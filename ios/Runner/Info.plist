@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>PrimeForm reads your step count from Apple Health to track your daily activity and display progress.</string>
 </dict>
 </plist>

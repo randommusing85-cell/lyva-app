@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../state/providers.dart';
 import '../services/analytics_service.dart';
 import '../widgets/workout_day_scheduler.dart';
+import '../theme/app_theme.dart';
+import '../services/premium_service.dart';
+import '../widgets/premium_gate.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -39,7 +44,6 @@ class SettingsScreen extends ConsumerWidget {
               FilledButton(
                 onPressed: selectedDays.length == profile.trainingDaysPerWeek
                     ? () async {
-                        // Save the schedule
                         final repo = ref.read(userProfileRepoProvider);
                         profile.scheduledDaysList = selectedDays;
                         profile.updatedAt = DateTime.now();
@@ -50,7 +54,7 @@ class SettingsScreen extends ConsumerWidget {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Workout schedule updated! ✅'),
+                              content: Text('Workout schedule updated!'),
                             ),
                           );
                         }
@@ -70,358 +74,232 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final profileAsync = ref.watch(userProfileProvider);
 
-    // Track analytics
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final analytics = ref.read(analyticsProvider);
       analytics.logSettingsViewed();
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (profile) {
-          if (profile == null) {
-            return const Center(child: Text('No profile found'));
-          }
+      body: SafeArea(
+        child: profileAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (profile) {
+            if (profile == null) {
+              return const Center(child: Text('No profile found'));
+            }
 
-          return ListView(
-            children: [
-              // Medical Disclaimer Section (Prominent at top)
-              _buildMedicalDisclaimer(context, theme, profile),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
 
-              const SizedBox(height: 16),
-
-              // Profile Section
-              _buildSectionHeader(theme, 'Profile'),
-              ListTile(
-                leading: const Icon(Icons.person),
-                title: const Text('Age'),
-                trailing: Text('${profile.age} years'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.wc),
-                title: const Text('Sex'),
-                trailing: Text(profile.sex == 'male' ? 'Male' : 'Female'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.height),
-                title: const Text('Height'),
-                trailing: Text('${profile.heightCm} cm'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.monitor_weight),
-                title: const Text('Weight'),
-                trailing: Text('${profile.weightKg.toStringAsFixed(1)} kg'),
-              ),
-
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: FilledButton.icon(
-                  onPressed: () {
-                    final analytics = ref.read(analyticsProvider);
-                    analytics.logProfileEditStarted();
-                    Navigator.pushNamed(context, '/edit-profile');
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Edit Profile'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 48),
+                  // Header
+                  Text(
+                    'Settings',
+                    style: theme.textTheme.displayMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
 
-              const Divider(),
+                  const SizedBox(height: 24),
 
-              // Women's Health Section (if applicable)
-              if (profile.sex == 'female') ...[
-                _buildSectionHeader(theme, 'Women\'s Health'),
+                  // Profile Card
+                  _ProfileCard(profile: profile),
 
-                if (profile.trackCycle) ...[
-                  ListTile(
-                    leading: const Icon(Icons.calendar_month),
-                    title: const Text('Cycle Tracking'),
-                    subtitle: const Text('Enabled'),
-                    trailing: const Icon(Icons.check_circle, color: Colors.green),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.edit_calendar),
-                    title: const Text('Cycle Length'),
-                    trailing: Text('${profile.cycleLength} days'),
-                  ),
-                ] else ...[
-                  ListTile(
-                    leading: const Icon(Icons.calendar_month),
-                    title: const Text('Cycle Tracking'),
-                    subtitle: const Text('Disabled'),
-                    trailing: const Icon(Icons.cancel, color: Colors.grey),
-                  ),
-                ],
+                  const SizedBox(height: 24),
 
-                if (profile.postPartumStatus != 'no') ...[
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.child_care),
-                    title: const Text('Post-Partum Status'),
-                    subtitle: Text(_getPostPartumStatusText(profile.postPartumStatus)),
-                    trailing: profile.medicalClearance
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : const Icon(Icons.warning, color: Colors.orange),
+                  // Settings List
+                  _SettingsTile(
+                    icon: Icons.calendar_month_outlined,
+                    title: 'Cycle tracking',
+                    subtitle: profile.trackCycle ? 'Enabled' : 'Disabled',
+                    onTap: () => Navigator.pushNamed(context, '/edit-profile'),
                   ),
-                  if (profile.deliveryDate != null)
-                    ListTile(
-                      leading: const Icon(Icons.event),
-                      title: const Text('Delivery Date'),
-                      trailing: Text(
-                        '${profile.deliveryDate!.day}/${profile.deliveryDate!.month}/${profile.deliveryDate!.year}',
+
+                  if (profile.trackCycle)
+                    _SettingsTile(
+                      icon: Icons.sync_outlined,
+                      title: 'Cycle length',
+                      subtitle: '${profile.cycleLength} days',
+                      onTap: () => Navigator.pushNamed(context, '/edit-profile'),
+                    ),
+
+                  _SettingsTile(
+                    icon: Icons.flag_outlined,
+                    title: 'Goal',
+                    subtitle: _getGoalText(profile.goal),
+                    onTap: () => Navigator.pushNamed(context, '/edit-profile'),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.signal_cellular_alt,
+                    title: 'Experience',
+                    subtitle: _getLevelText(profile.level),
+                    onTap: () => Navigator.pushNamed(context, '/edit-profile'),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.calendar_today_outlined,
+                    title: 'Training days',
+                    subtitle: '${profile.trainingDaysPerWeek} per week',
+                    onTap: () => _showScheduleDialog(context, ref, profile),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.healing_outlined,
+                    title: 'Injuries & Limitations',
+                    subtitle: profile.hasInjuries ? profile.injuryDisplayText : 'None',
+                    onTap: () => Navigator.pushNamed(context, '/settings/injuries'),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notifications',
+                    subtitle: profile.notifyCheckIn || profile.notifyWorkout
+                        ? 'Enabled'
+                        : 'Disabled',
+                    onTap: () => Navigator.pushNamed(context, '/settings/notifications'),
+                  ),
+
+                  _HealthPermissionTile(),
+
+                  const SizedBox(height: 24),
+
+                  // Premium Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Premium',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  if (profile.checkDiastasis)
-                    ListTile(
-                      leading: const Icon(Icons.healing),
-                      title: const Text('Diastasis Recti Guidance'),
-                      subtitle: const Text('Enabled'),
-                      trailing: const Icon(Icons.check_circle, color: Colors.green),
+                  ),
+
+                  PremiumFeatureCard(
+                    feature: PremiumFeature.progressPhotos,
+                    icon: Icons.camera_outlined,
+                    title: 'Progress Photos',
+                    description: 'AI body analysis and achievable celeb comparisons',
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  PremiumFeatureCard(
+                    feature: PremiumFeature.cyclePredictions,
+                    icon: Icons.auto_graph_outlined,
+                    title: 'Cycle Predictions',
+                    description: 'AI-powered period predictions and training adjustments',
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  PremiumFeatureCard(
+                    feature: PremiumFeature.exportData,
+                    icon: Icons.download_outlined,
+                    title: 'Export Data',
+                    description: 'Export your progress data to CSV',
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Support Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Support',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.help_outline,
+                    title: 'Help & FAQ',
+                    onTap: () => _showHelpDialog(context),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.feedback_outlined,
+                    title: 'Send Feedback',
+                    onTap: () => _showFeedbackDialog(context),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.info_outline,
+                    title: 'About PrimeForm',
+                    onTap: () => _showAboutDialog(context),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Legal Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Legal',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.health_and_safety_outlined,
+                    title: 'Medical Disclaimer',
+                    onTap: () => _showFullDisclaimerDialog(context),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.description_outlined,
+                    title: 'Terms of Service',
+                    onTap: () => _showTermsDialog(context),
+                  ),
+
+                  _SettingsTile(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    onTap: () => _showPrivacyDialog(context),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Logo + Version Info
+                  Center(
+                    child: Column(
+                      children: [
+                        SvgPicture.asset(
+                          'assets/logo/primeform_logo.svg',
+                          width: 48,
+                          height: 48,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'PrimeForm v1.0.0',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
                 ],
-
-                const Divider(),
-              ],
-
-              // Training Preferences
-              _buildSectionHeader(theme, 'Training'),
-              ListTile(
-                leading: const Icon(Icons.flag),
-                title: const Text('Goal'),
-                trailing: Text(_getGoalText(profile.goal)),
               ),
-              ListTile(
-                leading: const Icon(Icons.fitness_center),
-                title: const Text('Experience Level'),
-                trailing: Text(_getLevelText(profile.level)),
-              ),
-              ListTile(
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Training Days'),
-                trailing: Text('${profile.trainingDaysPerWeek} days/week'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Workout Schedule'),
-                subtitle: Text(profile.scheduleDisplayText),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _showScheduleDialog(context, ref, profile),
-              ),
-
-              const Divider(),
-
-              // Support Section
-              _buildSectionHeader(theme, 'Support'),
-              ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: const Text('Help & FAQ'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _showHelpDialog(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.feedback_outlined),
-                title: const Text('Send Feedback'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _showFeedbackDialog(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('About PrimeForm'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _showAboutDialog(context),
-              ),
-
-              const Divider(),
-
-              // Legal Section
-              _buildSectionHeader(theme, 'Legal'),
-              ListTile(
-                leading: const Icon(Icons.description_outlined),
-                title: const Text('Terms of Service'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _showTermsDialog(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.privacy_tip_outlined),
-                title: const Text('Privacy Policy'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _showPrivacyDialog(context),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Version Info
-              Center(
-                child: Text(
-                  'PrimeForm v1.0.0',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMedicalDisclaimer(
-    BuildContext context,
-    ThemeData theme,
-    profile,
-  ) {
-    // Show disclaimer for all users, but especially important for women
-    final isWoman = profile.sex == 'female';
-    final isPostPartum = profile.postPartumStatus != 'no';
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade300, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.health_and_safety,
-                color: Colors.orange.shade700,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Medical Disclaimer',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'PrimeForm provides fitness guidance, NOT medical advice.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.orange.shade900,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Always consult your healthcare provider:',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.orange.shade900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...[
-            if (isPostPartum) '• Before starting post-partum exercise',
-            '• Before starting any new exercise program',
-            if (isWoman) '• If you experience leaking or pelvic pressure',
-            if (isWoman) '• If you have any pelvic floor concerns',
-            '• If you experience pain (not just soreness)',
-            '• If you have any pre-existing medical conditions',
-            if (isPostPartum) '• If symptoms persist or worsen',
-          ].map((text) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.orange.shade900,
-                  ),
-                ),
-              )),
-          const SizedBox(height: 12),
-          if (isWoman) ...[
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'For specialized women\'s health concerns, consult a pelvic floor physical therapist.',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.orange.shade900,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          Text(
-            'PrimeForm is not a substitute for professional medical advice, diagnosis, or treatment.',
-            style: TextStyle(
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-              color: Colors.orange.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () {
-              final analytics = AnalyticsService();
-              analytics.logMedicalDisclaimerViewed();
-              _showFullDisclaimerDialog(context);
-            },
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Read Full Disclaimer'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.orange.shade900,
-              side: BorderSide(color: Colors.orange.shade700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(ThemeData theme, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.bold,
+            );
+          },
         ),
       ),
     );
-  }
-
-  String _getPostPartumStatusText(String status) {
-    switch (status) {
-      case 'early':
-        return 'Early Recovery (0-12 weeks)';
-      case 'mid':
-        return 'Rebuilding (3-6 months)';
-      case 'late':
-        return 'Strengthening (6-18 months)';
-      default:
-        return 'Not Post-Partum';
-    }
   }
 
   String _getGoalText(String goal) {
@@ -451,6 +329,9 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showFullDisclaimerDialog(BuildContext context) {
+    final analytics = AnalyticsService();
+    analytics.logMedicalDisclaimerViewed();
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -458,7 +339,7 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             Icon(Icons.health_and_safety, color: Colors.orange.shade700),
             const SizedBox(width: 8),
-            const Text('Full Medical Disclaimer'),
+            const Text('Medical Disclaimer'),
           ],
         ),
         content: const SingleChildScrollView(
@@ -471,67 +352,22 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 12),
               Text(
-                'PrimeForm ("the App") provides fitness and wellness information for educational and informational purposes only. The content provided through the App, including but not limited to workout programs, nutrition guidance, and health recommendations, is NOT intended to be a substitute for professional medical advice, diagnosis, or treatment.',
+                'PrimeForm provides fitness guidance, NOT medical advice. Always consult your healthcare provider before starting any exercise program.',
               ),
               SizedBox(height: 12),
               Text(
-                'ALWAYS SEEK MEDICAL ADVICE',
+                'Consult a doctor if you:',
                 style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'You should always consult with your physician or other qualified healthcare provider before starting any exercise program, especially if you:',
               ),
               SizedBox(height: 8),
               Text('• Are pregnant or post-partum'),
-              Text('• Have any pre-existing medical conditions'),
-              Text('• Are taking any medications'),
-              Text('• Have any injuries or physical limitations'),
-              Text('• Experience any pain or discomfort'),
+              Text('• Have pre-existing medical conditions'),
+              Text('• Experience pain or discomfort'),
+              Text('• Have pelvic floor concerns'),
               SizedBox(height: 12),
               Text(
-                'POST-PARTUM SPECIFIC',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Post-partum exercise guidance provided by the App is general information only. Medical clearance from your healthcare provider is required before beginning any post-partum exercise program. If you experience any unusual symptoms including but not limited to leaking, pelvic pressure, pain, or bleeding, stop exercising immediately and consult your healthcare provider.',
-              ),
-              SizedBox(height: 12),
-              Text(
-                'WOMEN\'S HEALTH',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Menstrual cycle tracking and related guidance is provided for informational purposes. This information should not be used for contraceptive purposes or as a substitute for medical care. Consult a pelvic floor physical therapist for specialized concerns.',
-              ),
-              SizedBox(height: 12),
-              Text(
-                'NO MEDICAL RELATIONSHIP',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Use of the App does not create a doctor-patient or healthcare provider-patient relationship. The App is not intended to diagnose, treat, cure, or prevent any disease or medical condition.',
-              ),
-              SizedBox(height: 12),
-              Text(
-                'ASSUMPTION OF RISK',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Exercise involves inherent risks. By using the App, you acknowledge and assume all risks associated with exercise and physical activity.',
-              ),
-              SizedBox(height: 12),
-              Text(
-                'EMERGENCY',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'If you experience a medical emergency, call emergency services immediately. Do not rely on the App for emergency medical assistance.',
+                'PrimeForm is not a substitute for professional medical advice, diagnosis, or treatment.',
+                style: TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
           ),
@@ -556,32 +392,30 @@ class SettingsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Common Questions:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 12),
-              Text(
                 'Q: Why is my plan locked for 14 days?',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
+              SizedBox(height: 4),
               Text(
-                'A: Consistency is key to progress. The 14-day lock helps you stick with your plan long enough to see real results, rather than constantly switching programs.',
+                'Consistency is key. The lock helps you stick with your plan long enough to see real results.',
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 16),
               Text(
                 'Q: When can I adjust my plan?',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
+              SizedBox(height: 4),
               Text(
-                'A: Use the AI Coach feature (available after 7 days) to make data-driven adjustments based on your progress.',
+                'Use the AI Coach feature after 7 days to make data-driven adjustments.',
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 16),
               Text(
                 'Q: Is this safe for post-partum?',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
+              SizedBox(height: 4),
               Text(
-                'A: Yes, but ONLY after medical clearance (6+ weeks for vaginal birth, 8+ for C-section). The app provides guidelines, but always follow your doctor\'s advice.',
+                'Only after medical clearance. Always follow your doctor\'s advice.',
               ),
             ],
           ),
@@ -597,79 +431,67 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showFeedbackDialog(BuildContext context) {
-    final feedbackController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Send Feedback'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('We\'d love to hear from you!'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: feedbackController,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: 'Share your thoughts, suggestions, or report issues...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              // TODO: Implement feedback submission
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Thank you for your feedback!'),
-                ),
-              );
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'kineticiq.ai@gmail.com',
+      query: 'subject=PrimeForm Feedback',
     );
+    launchUrl(uri);
   }
 
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('About PrimeForm'),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'PrimeForm v1.0.0',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(height: 8),
+              SvgPicture.asset(
+                'assets/logo/primeform_logo.svg',
+                width: 64,
+                height: 64,
               ),
-              SizedBox(height: 16),
-              Text(
+              const SizedBox(height: 12),
+              const Text(
+                'PrimeForm',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'v1.0.0',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              const Text(
                 'The smart fitness app that understands women\'s bodies.',
+                textAlign: TextAlign.center,
               ),
-              SizedBox(height: 12),
-              Text(
-                'Features:',
-                style: TextStyle(fontWeight: FontWeight.w600),
+              const SizedBox(height: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Features:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text('• Cycle-aware training'),
+                  Text('• Post-partum safe progression'),
+                  Text('• AI coaching'),
+                  Text('• Personalized nutrition plans'),
+                ],
               ),
-              Text('• Cycle-aware training adjustments'),
-              Text('• Post-partum safe progression'),
-              Text('• AI coaching with context'),
-              Text('• 14-day plan lock for consistency'),
-              Text('• Singapore local food context'),
-              SizedBox(height: 12),
-              Text(
+              const SizedBox(height: 12),
+              const Text(
                 'Built with science, designed for real bodies.',
+                style: TextStyle(fontStyle: FontStyle.italic, color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'kineticiq.ai@gmail.com',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
               ),
             ],
           ),
@@ -688,11 +510,83 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Terms of Service'),
         content: const SingleChildScrollView(
-          child: Text(
-            'Terms of Service content would go here...\n\n'
-            'This is a placeholder. You should add your actual Terms of Service.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Last Updated: January 2025',
+                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '1. Acceptance of Terms',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'By using PrimeForm, you agree to these Terms of Service. If you do not agree, please do not use the app.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '2. Description of Service',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'PrimeForm provides fitness guidance, workout plans, nutrition tracking, and AI coaching features. The service is intended for general fitness purposes only.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '3. Not Medical Advice',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'PrimeForm is NOT a substitute for professional medical advice, diagnosis, or treatment. Always consult your healthcare provider before starting any exercise or nutrition program.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '4. User Responsibilities',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('You agree to:'),
+              Text('• Provide accurate information about your health'),
+              Text('• Use the app responsibly'),
+              Text('• Not rely solely on the app for health decisions'),
+              Text('• Stop exercising if you experience pain or discomfort'),
+              SizedBox(height: 16),
+              Text(
+                '5. Limitation of Liability',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'PrimeForm and its creators are not liable for any injuries, health issues, or damages arising from use of the app. Use at your own risk.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '6. Changes to Terms',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'We may update these terms at any time. Continued use of the app constitutes acceptance of updated terms.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '7. Contact',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'For questions about these terms, please contact us through the app\'s feedback feature.',
+              ),
+            ],
           ),
         ),
         actions: [
@@ -709,11 +603,96 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Privacy Policy'),
         content: const SingleChildScrollView(
-          child: Text(
-            'Privacy Policy content would go here...\n\n'
-            'This is a placeholder. You should add your actual Privacy Policy.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Last Updated: January 2025',
+                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '1. Information We Collect',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('We collect information you provide directly:'),
+              Text('• Profile data (age, sex, height, weight)'),
+              Text('• Health information (cycle data, injuries)'),
+              Text('• Fitness data (workouts, check-ins, meals)'),
+              Text('• App usage analytics'),
+              SizedBox(height: 16),
+              Text(
+                '2. How We Use Your Information',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('Your data is used to:'),
+              Text('• Generate personalized workout and nutrition plans'),
+              Text('• Provide AI coaching recommendations'),
+              Text('• Track your progress'),
+              Text('• Improve app features'),
+              SizedBox(height: 16),
+              Text(
+                '3. Data Storage',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Your data is stored locally on your device and in secure cloud services (Firebase). We use industry-standard security measures to protect your information.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '4. Data Sharing',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'We do NOT sell your personal data. We may share anonymized, aggregated data for analytics purposes only.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '5. Your Rights',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('You have the right to:'),
+              Text('• Access your data'),
+              Text('• Correct inaccurate data'),
+              Text('• Delete your data'),
+              Text('• Export your data'),
+              SizedBox(height: 16),
+              Text(
+                '6. Analytics',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'We use Firebase Analytics to understand app usage patterns. This helps us improve the app experience. Analytics data is anonymized and aggregated.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '7. Children\'s Privacy',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'PrimeForm is not intended for users under 18. We do not knowingly collect data from children.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                '8. Contact Us',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'For privacy concerns, please contact us through the app\'s feedback feature.',
+              ),
+            ],
           ),
         ),
         actions: [
@@ -722,6 +701,298 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Profile card matching Figma design
+class _ProfileCard extends StatelessWidget {
+  final dynamic profile;
+
+  const _ProfileCard({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Profile header
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.seasonAccent,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Profile',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '${profile.sex == 'male' ? 'Male' : 'Female'} • ${profile.age}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pushNamed(context, '/edit-profile'),
+                icon: const Icon(Icons.edit_outlined),
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Stats row
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '${profile.heightCm}',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'cm',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        profile.weightKg.toStringAsFixed(1),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'kg',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Settings tile matching Figma design
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Icon(icon, color: AppColors.textSecondary),
+        title: Text(
+          title,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              )
+            : null,
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: AppColors.textMuted,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+}
+
+class _HealthPermissionTile extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_HealthPermissionTile> createState() => _HealthPermissionTileState();
+}
+
+class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
+  bool? _authorized;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final service = ref.read(stepTrackingServiceProvider);
+    final auth = await service.isAuthorized();
+    if (mounted) setState(() => _authorized = auth);
+  }
+
+  Future<void> _requestPermission() async {
+    final service = ref.read(stepTrackingServiceProvider);
+    final granted = await service.requestPermissions();
+    if (mounted) {
+      setState(() => _authorized = granted);
+      if (granted) {
+        ref.invalidate(todayStepsProvider);
+        ref.invalidate(weeklyStepsProvider);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(granted
+              ? 'Health data access granted'
+              : 'Permission denied — you can enable it in device settings'),
+          backgroundColor: granted ? AppColors.primary : AppColors.error,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final subtitle = _authorized == null
+        ? 'Checking...'
+        : _authorized!
+            ? 'Connected'
+            : 'Not connected';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        onTap: _requestPermission,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: const Icon(Icons.favorite_outline, color: AppColors.textSecondary),
+        title: Text(
+          'Health Data',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: _authorized == true ? AppColors.primary : AppColors.textSecondary,
+          ),
+        ),
+        trailing: _authorized == true
+            ? const Icon(Icons.check_circle, color: AppColors.primary, size: 20)
+            : const Icon(Icons.chevron_right, color: AppColors.textMuted),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }

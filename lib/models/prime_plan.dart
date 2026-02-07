@@ -6,6 +6,7 @@ part 'prime_plan.g.dart';
 class PrimePlan {
   Id id = Isar.autoIncrement;
 
+  @Index()
   late DateTime createdAt;
 
   late String planName;

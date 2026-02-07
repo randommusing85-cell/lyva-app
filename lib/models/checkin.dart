@@ -6,6 +6,7 @@ part 'checkin.g.dart';
 class CheckIn {
   Id id = Isar.autoIncrement;
 
+  @Index()
   late DateTime ts;
   late double weightKg;
   late double waistCm;

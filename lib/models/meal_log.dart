@@ -6,6 +6,7 @@ part 'meal_log.g.dart';
 class MealLog {
   Id id = Isar.autoIncrement;
 
+  @Index()
   late DateTime ts;
   
   /// Which meal: 'breakfast', 'lunch', 'dinner', 'snack'

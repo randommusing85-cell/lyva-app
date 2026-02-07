@@ -6,6 +6,12 @@ part 'user_profile.g.dart';
 class UserProfile {
   Id id = Isar.autoIncrement;
 
+  /// User's display name for personalized greetings
+  String name = '';
+
+  /// Last time user opened the app (for dynamic greetings)
+  DateTime? lastLoginAt;
+
   late int age;
   late String sex; // 'male' or 'female'
   late int heightCm;
