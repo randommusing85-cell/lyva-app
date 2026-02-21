@@ -271,6 +271,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   const SizedBox(height: 16),
 
+                  // Premium Quick Actions (AI Coach + Progress Photos)
+                  const _PremiumQuickActions(),
+
+                  const SizedBox(height: 16),
+
                   // Post-Partum Status (only shows if post-partum)
                   const PostPartumStatusCard(),
 
@@ -769,4 +774,37 @@ class _PhaseInfo {
     required this.description,
     required this.tips,
   });
+}
+
+/// Premium quick actions row (AI Coach + Progress Photos)
+class _PremiumQuickActions extends ConsumerWidget {
+  const _PremiumQuickActions();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accessAsync = ref.watch(premiumAccessProvider);
+    final hasAccess = accessAsync.valueOrNull?.hasAccess ?? false;
+
+    if (!hasAccess) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickActionCard(
+            emoji: '🤖',
+            label: 'AI Coach',
+            onTap: () => Navigator.pushNamed(context, '/ai-coaching'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _QuickActionCard(
+            emoji: '📸',
+            label: 'Photos',
+            onTap: () => Navigator.pushNamed(context, '/progress-photos'),
+          ),
+        ),
+      ],
+    );
+  }
 }

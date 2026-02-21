@@ -87,98 +87,108 @@ const UserProfileSchema = CollectionSchema(
       name: r'injuryNotes',
       type: IsarType.string,
     ),
-    r'lastLoginAt': PropertySchema(
+    r'isPremium': PropertySchema(
       id: 14,
+      name: r'isPremium',
+      type: IsarType.bool,
+    ),
+    r'lastLoginAt': PropertySchema(
+      id: 15,
       name: r'lastLoginAt',
       type: IsarType.dateTime,
     ),
     r'lastPeriodDate': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'lastPeriodDate',
       type: IsarType.dateTime,
     ),
     r'level': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'level',
       type: IsarType.string,
     ),
     r'medicalClearance': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'medicalClearance',
       type: IsarType.bool,
     ),
     r'name': PropertySchema(
-      id: 18,
+      id: 19,
       name: r'name',
       type: IsarType.string,
     ),
     r'notifyCheckIn': PropertySchema(
-      id: 19,
+      id: 20,
       name: r'notifyCheckIn',
       type: IsarType.bool,
     ),
     r'notifyWorkout': PropertySchema(
-      id: 20,
+      id: 21,
       name: r'notifyWorkout',
       type: IsarType.bool,
     ),
     r'periodDuration': PropertySchema(
-      id: 21,
+      id: 22,
       name: r'periodDuration',
       type: IsarType.long,
     ),
     r'postPartumStatus': PropertySchema(
-      id: 22,
+      id: 23,
       name: r'postPartumStatus',
       type: IsarType.string,
     ),
+    r'premiumTrialStart': PropertySchema(
+      id: 24,
+      name: r'premiumTrialStart',
+      type: IsarType.dateTime,
+    ),
     r'reminderHour': PropertySchema(
-      id: 23,
+      id: 25,
       name: r'reminderHour',
       type: IsarType.long,
     ),
     r'reminderMinute': PropertySchema(
-      id: 24,
+      id: 26,
       name: r'reminderMinute',
       type: IsarType.long,
     ),
     r'scheduleDisplayText': PropertySchema(
-      id: 25,
+      id: 27,
       name: r'scheduleDisplayText',
       type: IsarType.string,
     ),
     r'scheduledDays': PropertySchema(
-      id: 26,
+      id: 28,
       name: r'scheduledDays',
       type: IsarType.string,
     ),
     r'scheduledDaysList': PropertySchema(
-      id: 27,
+      id: 29,
       name: r'scheduledDaysList',
       type: IsarType.longList,
     ),
     r'sex': PropertySchema(
-      id: 28,
+      id: 30,
       name: r'sex',
       type: IsarType.string,
     ),
     r'trackCycle': PropertySchema(
-      id: 29,
+      id: 31,
       name: r'trackCycle',
       type: IsarType.bool,
     ),
     r'trainingDaysPerWeek': PropertySchema(
-      id: 30,
+      id: 32,
       name: r'trainingDaysPerWeek',
       type: IsarType.long,
     ),
     r'updatedAt': PropertySchema(
-      id: 31,
+      id: 33,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
     r'weightKg': PropertySchema(
-      id: 32,
+      id: 34,
       name: r'weightKg',
       type: IsarType.double,
     )
@@ -251,25 +261,27 @@ void _userProfileSerialize(
   writer.writeString(offsets[11], object.injuryDisplayText);
   writer.writeStringList(offsets[12], object.injuryList);
   writer.writeString(offsets[13], object.injuryNotes);
-  writer.writeDateTime(offsets[14], object.lastLoginAt);
-  writer.writeDateTime(offsets[15], object.lastPeriodDate);
-  writer.writeString(offsets[16], object.level);
-  writer.writeBool(offsets[17], object.medicalClearance);
-  writer.writeString(offsets[18], object.name);
-  writer.writeBool(offsets[19], object.notifyCheckIn);
-  writer.writeBool(offsets[20], object.notifyWorkout);
-  writer.writeLong(offsets[21], object.periodDuration);
-  writer.writeString(offsets[22], object.postPartumStatus);
-  writer.writeLong(offsets[23], object.reminderHour);
-  writer.writeLong(offsets[24], object.reminderMinute);
-  writer.writeString(offsets[25], object.scheduleDisplayText);
-  writer.writeString(offsets[26], object.scheduledDays);
-  writer.writeLongList(offsets[27], object.scheduledDaysList);
-  writer.writeString(offsets[28], object.sex);
-  writer.writeBool(offsets[29], object.trackCycle);
-  writer.writeLong(offsets[30], object.trainingDaysPerWeek);
-  writer.writeDateTime(offsets[31], object.updatedAt);
-  writer.writeDouble(offsets[32], object.weightKg);
+  writer.writeBool(offsets[14], object.isPremium);
+  writer.writeDateTime(offsets[15], object.lastLoginAt);
+  writer.writeDateTime(offsets[16], object.lastPeriodDate);
+  writer.writeString(offsets[17], object.level);
+  writer.writeBool(offsets[18], object.medicalClearance);
+  writer.writeString(offsets[19], object.name);
+  writer.writeBool(offsets[20], object.notifyCheckIn);
+  writer.writeBool(offsets[21], object.notifyWorkout);
+  writer.writeLong(offsets[22], object.periodDuration);
+  writer.writeString(offsets[23], object.postPartumStatus);
+  writer.writeDateTime(offsets[24], object.premiumTrialStart);
+  writer.writeLong(offsets[25], object.reminderHour);
+  writer.writeLong(offsets[26], object.reminderMinute);
+  writer.writeString(offsets[27], object.scheduleDisplayText);
+  writer.writeString(offsets[28], object.scheduledDays);
+  writer.writeLongList(offsets[29], object.scheduledDaysList);
+  writer.writeString(offsets[30], object.sex);
+  writer.writeBool(offsets[31], object.trackCycle);
+  writer.writeLong(offsets[32], object.trainingDaysPerWeek);
+  writer.writeDateTime(offsets[33], object.updatedAt);
+  writer.writeDouble(offsets[34], object.weightKg);
 }
 
 UserProfile _userProfileDeserialize(
@@ -292,24 +304,26 @@ UserProfile _userProfileDeserialize(
   object.injuries = reader.readString(offsets[10]);
   object.injuryList = reader.readStringList(offsets[12]) ?? [];
   object.injuryNotes = reader.readStringOrNull(offsets[13]);
-  object.lastLoginAt = reader.readDateTimeOrNull(offsets[14]);
-  object.lastPeriodDate = reader.readDateTimeOrNull(offsets[15]);
-  object.level = reader.readString(offsets[16]);
-  object.medicalClearance = reader.readBool(offsets[17]);
-  object.name = reader.readString(offsets[18]);
-  object.notifyCheckIn = reader.readBool(offsets[19]);
-  object.notifyWorkout = reader.readBool(offsets[20]);
-  object.periodDuration = reader.readLong(offsets[21]);
-  object.postPartumStatus = reader.readString(offsets[22]);
-  object.reminderHour = reader.readLong(offsets[23]);
-  object.reminderMinute = reader.readLong(offsets[24]);
-  object.scheduledDays = reader.readString(offsets[26]);
-  object.scheduledDaysList = reader.readLongList(offsets[27]) ?? [];
-  object.sex = reader.readString(offsets[28]);
-  object.trackCycle = reader.readBool(offsets[29]);
-  object.trainingDaysPerWeek = reader.readLong(offsets[30]);
-  object.updatedAt = reader.readDateTime(offsets[31]);
-  object.weightKg = reader.readDouble(offsets[32]);
+  object.isPremium = reader.readBool(offsets[14]);
+  object.lastLoginAt = reader.readDateTimeOrNull(offsets[15]);
+  object.lastPeriodDate = reader.readDateTimeOrNull(offsets[16]);
+  object.level = reader.readString(offsets[17]);
+  object.medicalClearance = reader.readBool(offsets[18]);
+  object.name = reader.readString(offsets[19]);
+  object.notifyCheckIn = reader.readBool(offsets[20]);
+  object.notifyWorkout = reader.readBool(offsets[21]);
+  object.periodDuration = reader.readLong(offsets[22]);
+  object.postPartumStatus = reader.readString(offsets[23]);
+  object.premiumTrialStart = reader.readDateTimeOrNull(offsets[24]);
+  object.reminderHour = reader.readLong(offsets[25]);
+  object.reminderMinute = reader.readLong(offsets[26]);
+  object.scheduledDays = reader.readString(offsets[28]);
+  object.scheduledDaysList = reader.readLongList(offsets[29]) ?? [];
+  object.sex = reader.readString(offsets[30]);
+  object.trackCycle = reader.readBool(offsets[31]);
+  object.trainingDaysPerWeek = reader.readLong(offsets[32]);
+  object.updatedAt = reader.readDateTime(offsets[33]);
+  object.weightKg = reader.readDouble(offsets[34]);
   return object;
 }
 
@@ -349,42 +363,46 @@ P _userProfileDeserializeProp<P>(
     case 13:
       return (reader.readStringOrNull(offset)) as P;
     case 14:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 15:
       return (reader.readDateTimeOrNull(offset)) as P;
     case 16:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 17:
-      return (reader.readBool(offset)) as P;
-    case 18:
       return (reader.readString(offset)) as P;
-    case 19:
+    case 18:
       return (reader.readBool(offset)) as P;
+    case 19:
+      return (reader.readString(offset)) as P;
     case 20:
       return (reader.readBool(offset)) as P;
     case 21:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 22:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 23:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 24:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 25:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 26:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 27:
-      return (reader.readLongList(offset) ?? []) as P;
+      return (reader.readString(offset)) as P;
     case 28:
       return (reader.readString(offset)) as P;
     case 29:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLongList(offset) ?? []) as P;
     case 30:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 31:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 32:
+      return (reader.readLong(offset)) as P;
+    case 33:
+      return (reader.readDateTime(offset)) as P;
+    case 34:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1905,6 +1923,16 @@ extension UserProfileQueryFilter
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      isPremiumEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isPremium',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
       lastLoginAtIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -2533,6 +2561,80 @@ extension UserProfileQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'postPartumStatus',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTrialStartIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'premiumTrialStart',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTrialStartIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'premiumTrialStart',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTrialStartEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'premiumTrialStart',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTrialStartGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'premiumTrialStart',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTrialStartLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'premiumTrialStart',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTrialStartBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'premiumTrialStart',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -3553,6 +3655,18 @@ extension UserProfileQuerySortBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByIsPremium() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isPremium', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByIsPremiumDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isPremium', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByLastLoginAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastLoginAt', Sort.asc);
@@ -3666,6 +3780,20 @@ extension UserProfileQuerySortBy
       sortByPostPartumStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'postPartumStatus', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByPremiumTrialStart() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTrialStart', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByPremiumTrialStartDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTrialStart', Sort.desc);
     });
   }
 
@@ -3960,6 +4088,18 @@ extension UserProfileQuerySortThenBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByIsPremium() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isPremium', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByIsPremiumDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isPremium', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByLastLoginAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastLoginAt', Sort.asc);
@@ -4073,6 +4213,20 @@ extension UserProfileQuerySortThenBy
       thenByPostPartumStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'postPartumStatus', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByPremiumTrialStart() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTrialStart', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByPremiumTrialStartDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTrialStart', Sort.desc);
     });
   }
 
@@ -4285,6 +4439,12 @@ extension UserProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByIsPremium() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isPremium');
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByLastLoginAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastLoginAt');
@@ -4341,6 +4501,13 @@ extension UserProfileQueryWhereDistinct
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'postPartumStatus',
           caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByPremiumTrialStart() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'premiumTrialStart');
     });
   }
 
@@ -4507,6 +4674,12 @@ extension UserProfileQueryProperty
     });
   }
 
+  QueryBuilder<UserProfile, bool, QQueryOperations> isPremiumProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isPremium');
+    });
+  }
+
   QueryBuilder<UserProfile, DateTime?, QQueryOperations> lastLoginAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastLoginAt');
@@ -4560,6 +4733,13 @@ extension UserProfileQueryProperty
       postPartumStatusProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'postPartumStatus');
+    });
+  }
+
+  QueryBuilder<UserProfile, DateTime?, QQueryOperations>
+      premiumTrialStartProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'premiumTrialStart');
     });
   }
 

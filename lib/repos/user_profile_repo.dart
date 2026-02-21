@@ -32,6 +32,16 @@ class UserProfileRepo {
     return profile != null;
   }
   
+  /// Start the 7-day premium trial
+  Future<void> startPremiumTrial() async {
+    final profile = await getProfile();
+    if (profile == null) return;
+    if (profile.premiumTrialStart != null) return; // Already started
+    profile.premiumTrialStart = DateTime.now();
+    profile.updatedAt = DateTime.now();
+    await saveProfile(profile);
+  }
+
   /// Delete the user profile (for testing/reset)
   Future<void> deleteProfile() async {
     final isar = await IsarDb.instance();

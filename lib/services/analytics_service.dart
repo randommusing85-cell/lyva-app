@@ -541,4 +541,55 @@ class AnalyticsService {
       },
     );
   }
+
+  // ===== PREMIUM TRIAL =====
+
+  Future<void> logPremiumTrialStarted() async {
+    await _analytics.logEvent(name: 'premium_trial_started');
+    await _analytics.setUserProperty(name: 'premium_status', value: 'trial');
+  }
+
+  Future<void> logPremiumTrialExpired() async {
+    await _analytics.logEvent(name: 'premium_trial_expired');
+    await _analytics.setUserProperty(name: 'premium_status', value: 'expired');
+  }
+
+  // ===== AI COACHING (Premium) =====
+
+  Future<void> logAiCoachSessionStarted() async {
+    await _analytics.logEvent(name: 'ai_coach_session_started');
+  }
+
+  Future<void> logAiCoachMessageSent() async {
+    await _analytics.logEvent(name: 'ai_coach_message_sent');
+  }
+
+  // ===== PROGRESS PHOTOS (Premium) =====
+
+  Future<void> logProgressPhotoTaken() async {
+    await _analytics.logEvent(name: 'progress_photo_taken');
+  }
+
+  Future<void> logProgressPhotoAnalyzed() async {
+    await _analytics.logEvent(name: 'progress_photo_analyzed');
+  }
+
+  // ===== CYCLE PREDICTIONS (Premium) =====
+
+  Future<void> logCyclePredictionGenerated() async {
+    await _analytics.logEvent(name: 'cycle_prediction_generated');
+  }
+
+  Future<void> logCycleSymptomLogged({
+    required String symptomType,
+    required int severity,
+  }) async {
+    await _analytics.logEvent(
+      name: 'cycle_symptom_logged',
+      parameters: {
+        'symptom_type': symptomType,
+        'severity': severity,
+      },
+    );
+  }
 }

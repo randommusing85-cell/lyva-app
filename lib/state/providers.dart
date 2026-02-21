@@ -7,9 +7,15 @@ import '../models/workout_template_doc.dart';
 import '../models/workout_session_doc.dart';
 import '../models/user_profile.dart';
 import '../models/meal_log.dart';
+import '../models/coach_message.dart';
+import '../models/ai_insight.dart';
+import '../models/progress_photo.dart';
+import '../models/cycle_prediction.dart';
+import '../models/cycle_log.dart';
 import '../services/analytics_service.dart';
 import '../services/food_api_service.dart';
 import '../services/step_tracking_service.dart';
+import '../services/premium_service.dart';
 import '../models/food_item.dart';
 
 // ============================================================================
@@ -285,4 +291,63 @@ final weeklyStepsProvider = FutureProvider.autoDispose<Map<DateTime, int>>((ref)
   final authorized = await service.isAuthorized();
   if (!authorized) return {};
   return service.getWeeklySteps();
+});
+
+// ============================================================================
+// PREMIUM ACCESS
+// ============================================================================
+
+final premiumServiceProvider = Provider<PremiumService>((ref) => PremiumService());
+
+/// Premium access status (premium, trial, expired, or none)
+final premiumAccessProvider = FutureProvider.autoDispose<PremiumAccessStatus>((ref) async {
+  final profile = await ref.watch(userProfileProvider.future);
+  final service = ref.watch(premiumServiceProvider);
+  return service.getAccessStatus(profile);
+});
+
+// ============================================================================
+// AI COACHING (PREMIUM)
+// ============================================================================
+
+/// Stream of coaching messages (most recent first)
+final coachMessagesProvider = StreamProvider.autoDispose<List<CoachMessage>>((ref) {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.watchCoachMessages(limit: 100);
+});
+
+// ============================================================================
+// AI MEMORY / INSIGHTS (PREMIUM)
+// ============================================================================
+
+/// All active (non-dismissed) AI insights
+final aiInsightsProvider = FutureProvider.autoDispose<List<AiInsight>>((ref) async {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.getActiveInsights();
+});
+
+// ============================================================================
+// PROGRESS PHOTOS (PREMIUM)
+// ============================================================================
+
+/// Stream of all progress photos
+final progressPhotosProvider = StreamProvider.autoDispose<List<ProgressPhoto>>((ref) {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.watchProgressPhotos();
+});
+
+// ============================================================================
+// CYCLE PREDICTIONS (PREMIUM)
+// ============================================================================
+
+/// Latest cycle prediction
+final latestCyclePredictionProvider = FutureProvider.autoDispose<CyclePrediction?>((ref) async {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.getLatestPrediction();
+});
+
+/// Cycle symptom log stream
+final cycleLogsProvider = StreamProvider.autoDispose<List<CycleLog>>((ref) {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.watchCycleLogs();
 });

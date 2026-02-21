@@ -87,7 +87,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
         ..weightKg = (_tryNum(_weightCtrl.text) ?? 0).toDouble()
         ..waistCm = (_tryNum(_waistCtrl.text) ?? 0).toDouble()
         ..stepsToday = int.parse(_stepsCtrl.text.trim())
-        ..note = _buildNote();
+        ..note = _buildNote()
+        ..moodScore = _selectedMood
+        ..energyScore = _selectedEnergy;
 
       final repo = ref.read(primeRepoProvider);
       await repo.addCheckIn(c);

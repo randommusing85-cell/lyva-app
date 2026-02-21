@@ -13,7 +13,10 @@ class CheckIn {
   late int stepsToday;
 
   String? note;
-  
-  // Macros removed - now tracked in MealLog
-  // Daily macro totals calculated from MealLog entries
+
+  /// Mood score 1-5 (for cycle prediction integration)
+  int? moodScore;
+
+  /// Energy score 1-5 (for cycle prediction integration)
+  int? energyScore;
 }

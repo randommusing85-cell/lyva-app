@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../services/premium_service.dart';
 import '../services/analytics_service.dart';
+import '../state/providers.dart';
 
-/// A widget that gates premium content and shows a waitlist signup
+/// A widget that gates premium content behind trial/subscription
 class PremiumGate extends ConsumerWidget {
   final PremiumFeature feature;
   final Widget child;
@@ -22,67 +23,173 @@ class PremiumGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (!showGate) return child;
 
-    // Track gate encountered
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final analytics = AnalyticsService();
-      analytics.logPremiumGateEncountered(
-        featureId: feature.id,
-        screen: ModalRoute.of(context)?.settings.name ?? 'unknown',
-      );
-    });
+    final accessAsync = ref.watch(premiumAccessProvider);
 
-    return GestureDetector(
-      onTap: () => _showPremiumSheet(context, feature),
-      child: Stack(
-        children: [
-          // Blurred/dimmed content
-          Opacity(
-            opacity: 0.5,
-            child: IgnorePointer(child: child),
-          ),
-          // Premium badge overlay
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.seasonAccent,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.star,
-                        size: 14,
-                        color: Colors.white,
+    return accessAsync.when(
+      data: (access) {
+        if (access.hasAccess) return child;
+
+        // Track gate encountered
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final analytics = AnalyticsService();
+          analytics.logPremiumGateEncountered(
+            featureId: feature.id,
+            screen: ModalRoute.of(context)?.settings.name ?? 'unknown',
+          );
+        });
+
+        if (access.type == PremiumAccessType.none) {
+          // No trial started - offer trial
+          return GestureDetector(
+            onTap: () => _showTrialOfferSheet(context, ref, feature),
+            child: Stack(
+              children: [
+                Opacity(opacity: 0.5, child: IgnorePointer(child: child)),
+                Positioned.fill(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.seasonAccent,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        'Premium',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star, size: 14, color: Colors.white),
+                          SizedBox(width: 6),
+                          Text(
+                            'Try Free for 7 Days',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Trial expired - show upgrade
+        return GestureDetector(
+          onTap: () => _showPremiumSheet(context, feature),
+          child: Stack(
+            children: [
+              Opacity(opacity: 0.4, child: IgnorePointer(child: child)),
+              Positioned.fill(
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.textMuted,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock, size: 14, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text(
+                          'Upgrade to Premium',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
+      loading: () => child,
+      error: (_, __) => child,
     );
   }
+}
+
+/// Show trial offer bottom sheet
+void _showTrialOfferSheet(BuildContext context, WidgetRef ref, PremiumFeature feature) {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.seasonAccent, AppColors.seasonAccent.withOpacity(0.7)],
+                ),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: const Icon(Icons.star, color: Colors.white, size: 32),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Start Your Free Trial',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try ${feature.name} and all premium features free for 7 days.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final profileRepo = ref.read(userProfileRepoProvider);
+                  await profileRepo.startPremiumTrial();
+                  ref.invalidate(userProfileProvider);
+                  ref.invalidate(premiumAccessProvider);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.seasonAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Start 7-Day Free Trial', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No credit card required',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// A button that shows the premium waitlist sheet

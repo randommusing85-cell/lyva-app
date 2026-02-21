@@ -7,6 +7,7 @@ import '../models/meal_log.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
 import '../widgets/circular_progress_ring.dart';
+import '../models/cycle_prediction.dart';
 import '../services/analytics_service.dart';
 import '../services/premium_service.dart';
 import '../widgets/premium_gate.dart';
@@ -152,6 +153,11 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
 
               // Steps trend chart (7-day)
               const StepsTrendCard(),
+
+              const SizedBox(height: 24),
+
+              // Cycle prediction summary (when cycle tracking + premium active)
+              const _CyclePredictionSummary(),
 
               const SizedBox(height: 24),
 
@@ -925,6 +931,140 @@ class _ConsistencyCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Cycle prediction summary card (shows when cycle tracking + premium active)
+class _CyclePredictionSummary extends ConsumerWidget {
+  const _CyclePredictionSummary();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final profileAsync = ref.watch(userProfileProvider);
+    final accessAsync = ref.watch(premiumAccessProvider);
+    final predictionAsync = ref.watch(latestCyclePredictionProvider);
+
+    final profile = profileAsync.valueOrNull;
+    final hasAccess = accessAsync.valueOrNull?.hasAccess ?? false;
+
+    // Only show if user tracks cycles and has premium access
+    if (profile == null || !profile.trackCycle || !hasAccess) {
+      return const SizedBox.shrink();
+    }
+
+    return predictionAsync.when(
+      data: (prediction) {
+        if (prediction == null) return const SizedBox.shrink();
+
+        final dateFormat = DateFormat('MMM d');
+        final daysUntilPeriod = prediction.predictedPeriodDate
+            .difference(DateTime.now())
+            .inDays;
+
+        return GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/cycle-insights'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.auto_graph, size: 18, color: AppColors.seasonAccent),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Cycle Prediction',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Next period',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            dateFormat.format(prediction.predictedPeriodDate),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'In',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            daysUntilPeriod > 0
+                                ? '$daysUntilPeriod days'
+                                : 'Today',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: daysUntilPeriod <= 3
+                                  ? const Color(0xFFE57373)
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${(prediction.confidence * 100).round()}%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }

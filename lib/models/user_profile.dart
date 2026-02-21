@@ -138,6 +138,14 @@ class UserProfile {
   /// Preferred reminder time (minute, 0-59)
   int reminderMinute = 0;
 
+  // ===== PREMIUM FIELDS =====
+
+  /// Whether the user has active premium subscription
+  bool isPremium = false;
+
+  /// When the user first accessed a premium feature (trial start)
+  DateTime? premiumTrialStart;
+
   // ===== HELPER METHODS =====
   
   /// Get injuries as a list

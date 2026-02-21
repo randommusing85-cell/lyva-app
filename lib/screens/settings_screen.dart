@@ -181,30 +181,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  PremiumFeatureCard(
-                    feature: PremiumFeature.progressPhotos,
-                    icon: Icons.camera_outlined,
-                    title: 'Progress Photos',
-                    description: 'AI body analysis and achievable celeb comparisons',
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  PremiumFeatureCard(
-                    feature: PremiumFeature.cyclePredictions,
-                    icon: Icons.auto_graph_outlined,
-                    title: 'Cycle Predictions',
-                    description: 'AI-powered period predictions and training adjustments',
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  PremiumFeatureCard(
-                    feature: PremiumFeature.exportData,
-                    icon: Icons.download_outlined,
-                    title: 'Export Data',
-                    description: 'Export your progress data to CSV',
-                  ),
+                  _PremiumSection(profile: profile),
 
                   const SizedBox(height: 24),
 
@@ -905,6 +882,76 @@ class _SettingsTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
+    );
+  }
+}
+
+/// Premium section: shows navigable tiles when premium is active, otherwise feature cards
+class _PremiumSection extends ConsumerWidget {
+  final dynamic profile;
+
+  const _PremiumSection({required this.profile});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accessAsync = ref.watch(premiumAccessProvider);
+    final hasAccess = accessAsync.valueOrNull?.hasAccess ?? false;
+
+    if (hasAccess) {
+      return Column(
+        children: [
+          _SettingsTile(
+            icon: Icons.smart_toy_outlined,
+            title: 'AI Coach',
+            subtitle: 'Chat with your personal coach',
+            onTap: () => Navigator.pushNamed(context, '/ai-coaching'),
+          ),
+          _SettingsTile(
+            icon: Icons.camera_outlined,
+            title: 'Progress Photos',
+            subtitle: 'AI body analysis & tracking',
+            onTap: () => Navigator.pushNamed(context, '/progress-photos'),
+          ),
+          if (profile.trackCycle)
+            _SettingsTile(
+              icon: Icons.auto_graph_outlined,
+              title: 'Cycle Insights',
+              subtitle: 'AI predictions & symptom logging',
+              onTap: () => Navigator.pushNamed(context, '/cycle-insights'),
+            ),
+          PremiumFeatureCard(
+            feature: PremiumFeature.exportData,
+            icon: Icons.download_outlined,
+            title: 'Export Data',
+            description: 'Export your progress data to CSV',
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        PremiumFeatureCard(
+          feature: PremiumFeature.progressPhotos,
+          icon: Icons.camera_outlined,
+          title: 'Progress Photos',
+          description: 'AI body analysis and achievable celeb comparisons',
+        ),
+        const SizedBox(height: 8),
+        PremiumFeatureCard(
+          feature: PremiumFeature.cyclePredictions,
+          icon: Icons.auto_graph_outlined,
+          title: 'Cycle Predictions',
+          description: 'AI-powered period predictions and training adjustments',
+        ),
+        const SizedBox(height: 8),
+        PremiumFeatureCard(
+          feature: PremiumFeature.exportData,
+          icon: Icons.download_outlined,
+          title: 'Export Data',
+          description: 'Export your progress data to CSV',
+        ),
+      ],
     );
   }
 }

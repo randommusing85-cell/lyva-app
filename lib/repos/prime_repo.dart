@@ -10,6 +10,12 @@ import 'package:primeform_app/models/workout_template_doc.dart';
 import 'package:primeform_app/models/workout_session_doc.dart';
 import 'package:primeform_app/models/meal_log.dart';
 import 'package:primeform_app/models/food_item.dart';
+import 'package:primeform_app/models/coach_message.dart';
+import 'package:primeform_app/models/ai_insight.dart';
+import 'package:primeform_app/models/progress_photo.dart';
+import 'package:primeform_app/models/cycle_prediction.dart';
+import 'package:primeform_app/models/cycle_log.dart';
+import 'package:primeform_app/models/user_profile.dart';
 
 class PrimeRepo {
   /* =========================
@@ -462,6 +468,304 @@ class PrimeRepo {
     
     // Missed = expected - completed (clamped to 0)
     return (expectedSessions - completedCount).clamp(0, expectedSessions);
+  }
+
+  /* =========================
+   * AI COACHING (PREMIUM)
+   * ========================= */
+
+  Future<void> addCoachMessage(CoachMessage msg) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.coachMessages.put(msg);
+    });
+  }
+
+  Stream<List<CoachMessage>> watchCoachMessages({int limit = 100}) async* {
+    final isar = await IsarDb.instance();
+    yield* isar.coachMessages
+        .where()
+        .sortByTsDesc()
+        .limit(limit)
+        .watch(fireImmediately: true);
+  }
+
+  Future<List<CoachMessage>> getRecentCoachMessages({int limit = 20}) async {
+    final isar = await IsarDb.instance();
+    return isar.coachMessages.where().sortByTsDesc().limit(limit).findAll();
+  }
+
+  Future<void> clearCoachMessages() async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.coachMessages.clear();
+    });
+  }
+
+  /// Build the context snapshot for AI coaching
+  Future<Map<String, dynamic>> buildCoachingContext() async {
+    final isar = await IsarDb.instance();
+    final profile = await isar.userProfiles.where().findFirst();
+    final plan = await getActivePlan();
+    final recentCheckIns = await latestCheckIns(limit: 7);
+    final template = await getLatestWorkoutTemplate();
+    final weekSessions = await getThisWeekSessions();
+
+    return {
+      'profile': {
+        'age': profile?.age,
+        'sex': profile?.sex,
+        'goal': profile?.goal,
+        'level': profile?.level,
+        'weightKg': profile?.weightKg,
+        'heightCm': profile?.heightCm,
+        'tracksCycle': profile?.trackCycle,
+        'cycleLength': profile?.cycleLength,
+        'injuries': profile?.injuryList,
+      },
+      'plan': plan != null
+          ? {
+              'calories': plan.calories,
+              'proteinG': plan.proteinG,
+              'carbsG': plan.carbsG,
+              'fatG': plan.fatG,
+              'stepTarget': plan.stepTarget,
+            }
+          : null,
+      'recentCheckIns': recentCheckIns
+          .map((c) => {
+                'date': c.ts.toIso8601String(),
+                'weightKg': c.weightKg,
+                'waistCm': c.waistCm,
+                'steps': c.stepsToday,
+                'mood': c.moodScore,
+                'energy': c.energyScore,
+              })
+          .toList(),
+      'workoutsThisWeek': weekSessions.length,
+      'hasWorkoutPlan': template != null,
+    };
+  }
+
+  /// Call the AI coaching Cloud Function
+  Future<String> sendCoachMessage({
+    required String userMessage,
+    required Map<String, dynamic> context,
+    required List<Map<String, String>> recentHistory,
+    List<Map<String, dynamic>>? insights,
+  }) async {
+    final callable = FirebaseFunctions.instance.httpsCallable('aiCoachChat');
+    final res = await callable.call({
+      'message': userMessage,
+      'context': context,
+      'history': recentHistory,
+      'insights': insights ?? [],
+    });
+
+    if (res.data is! Map || res.data['ok'] != true) {
+      throw Exception('AI coaching request failed');
+    }
+    return res.data['response'] as String;
+  }
+
+  /* =========================
+   * AI MEMORY / INSIGHTS (PREMIUM)
+   * ========================= */
+
+  Future<void> saveAiInsight(AiInsight insight) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.aiInsights.put(insight);
+    });
+  }
+
+  Future<List<AiInsight>> getActiveInsights() async {
+    final isar = await IsarDb.instance();
+    return isar.aiInsights
+        .filter()
+        .dismissedEqualTo(false)
+        .sortByTsDesc()
+        .findAll();
+  }
+
+  Future<List<AiInsight>> getInsightsByCategory(String category) async {
+    final isar = await IsarDb.instance();
+    return isar.aiInsights
+        .filter()
+        .categoryEqualTo(category)
+        .and()
+        .dismissedEqualTo(false)
+        .sortByTsDesc()
+        .findAll();
+  }
+
+  Future<void> dismissInsight(Id insightId) async {
+    final isar = await IsarDb.instance();
+    final insight = await isar.aiInsights.get(insightId);
+    if (insight == null) return;
+    insight.dismissed = true;
+    await isar.writeTxn(() async {
+      await isar.aiInsights.put(insight);
+    });
+  }
+
+  /// Extract insights from AI coaching conversation via Cloud Function
+  Future<List<Map<String, dynamic>>> extractInsights({
+    required List<Map<String, String>> conversationHistory,
+    required List<Map<String, dynamic>> existingInsights,
+  }) async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('extractAiInsights');
+    final res = await callable.call({
+      'conversation': conversationHistory,
+      'existingInsights': existingInsights,
+    });
+
+    if (res.data is! Map || res.data['ok'] != true) {
+      return [];
+    }
+    return List<Map<String, dynamic>>.from(res.data['insights'] as List);
+  }
+
+  /* =========================
+   * PROGRESS PHOTOS (PREMIUM)
+   * ========================= */
+
+  Future<void> saveProgressPhoto(ProgressPhoto photo) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.progressPhotos.put(photo);
+    });
+  }
+
+  Future<List<ProgressPhoto>> getAllProgressPhotos() async {
+    final isar = await IsarDb.instance();
+    return isar.progressPhotos.where().sortByTsDesc().findAll();
+  }
+
+  Stream<List<ProgressPhoto>> watchProgressPhotos() async* {
+    final isar = await IsarDb.instance();
+    yield* isar.progressPhotos
+        .where()
+        .sortByTsDesc()
+        .watch(fireImmediately: true);
+  }
+
+  Future<void> deleteProgressPhoto(Id photoId) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.progressPhotos.delete(photoId);
+    });
+  }
+
+  /// Send photo to Cloud Function for AI analysis
+  Future<Map<String, dynamic>> analyzeProgressPhoto({
+    required String base64Image,
+    required Map<String, dynamic> userContext,
+  }) async {
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'analyzeProgressPhoto',
+      options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
+    );
+    final res = await callable.call({
+      'image': base64Image,
+      'context': userContext,
+    });
+
+    if (res.data is! Map || res.data['ok'] != true) {
+      throw Exception('Photo analysis failed');
+    }
+    return Map<String, dynamic>.from(res.data['analysis'] as Map);
+  }
+
+  /* =========================
+   * CYCLE PREDICTIONS (PREMIUM)
+   * ========================= */
+
+  Future<void> saveCyclePrediction(CyclePrediction pred) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.cyclePredictions.put(pred);
+    });
+  }
+
+  Future<CyclePrediction?> getLatestPrediction() async {
+    final isar = await IsarDb.instance();
+    return isar.cyclePredictions.where().sortByTsDesc().findFirst();
+  }
+
+  Future<void> saveCycleLog(CycleLog log) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.cycleLogs.put(log);
+    });
+  }
+
+  Future<List<CycleLog>> getCycleLogs({int limit = 90}) async {
+    final isar = await IsarDb.instance();
+    return isar.cycleLogs.where().sortByTsDesc().limit(limit).findAll();
+  }
+
+  Stream<List<CycleLog>> watchCycleLogs() async* {
+    final isar = await IsarDb.instance();
+    yield* isar.cycleLogs
+        .where()
+        .sortByTsDesc()
+        .watch(fireImmediately: true);
+  }
+
+  /// Call Cloud Function for ML-based cycle prediction
+  Future<Map<String, dynamic>> predictCycle({
+    required List<Map<String, dynamic>> cycleHistory,
+    required List<Map<String, dynamic>> checkInData,
+    required List<Map<String, dynamic>> workoutData,
+    required Map<String, dynamic> profileData,
+  }) async {
+    final callable = FirebaseFunctions.instance.httpsCallable('predictCycle');
+    final res = await callable.call({
+      'cycleHistory': cycleHistory,
+      'checkIns': checkInData,
+      'workouts': workoutData,
+      'profile': profileData,
+    });
+
+    if (res.data is! Map || res.data['ok'] != true) {
+      throw Exception('Cycle prediction failed');
+    }
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  /// Confirm period started (for improving predictions)
+  Future<void> confirmPeriodStarted(DateTime date) async {
+    final isar = await IsarDb.instance();
+
+    // Save period start log
+    final log = CycleLog()
+      ..ts = date
+      ..eventType = 'period_start';
+    await isar.writeTxn(() async {
+      await isar.cycleLogs.put(log);
+    });
+
+    // Update latest prediction with actual date
+    final pred = await getLatestPrediction();
+    if (pred != null && !pred.verified) {
+      pred.verified = true;
+      pred.actualPeriodDate = date;
+      await isar.writeTxn(() async {
+        await isar.cyclePredictions.put(pred);
+      });
+    }
+
+    // Update UserProfile.lastPeriodDate
+    final profile = await isar.userProfiles.where().findFirst();
+    if (profile != null) {
+      profile.lastPeriodDate = date;
+      profile.updatedAt = DateTime.now();
+      await isar.writeTxn(() async {
+        await isar.userProfiles.put(profile);
+      });
+    }
   }
 
 }

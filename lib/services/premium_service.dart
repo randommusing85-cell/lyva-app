@@ -1,6 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/user_profile.dart';
+
+/// Premium access status
+enum PremiumAccessType { premium, trial, expired, none }
+
+class PremiumAccessStatus {
+  final PremiumAccessType type;
+  final int trialDaysRemaining;
+
+  const PremiumAccessStatus._(this.type, [this.trialDaysRemaining = 0]);
+
+  static const premium = PremiumAccessStatus._(PremiumAccessType.premium);
+  static const expired = PremiumAccessStatus._(PremiumAccessType.expired);
+  static const none = PremiumAccessStatus._(PremiumAccessType.none);
+
+  factory PremiumAccessStatus.trial(int daysRemaining) =>
+      PremiumAccessStatus._(PremiumAccessType.trial, daysRemaining);
+
+  bool get hasAccess =>
+      type == PremiumAccessType.premium || type == PremiumAccessType.trial;
+}
+
 /// Premium feature enum for tracking interest
 enum PremiumFeature {
   aiCoaching('ai_coaching', 'AI Coaching', 'Get personalized AI coaching conversations'),
@@ -19,13 +41,50 @@ enum PremiumFeature {
   const PremiumFeature(this.id, this.name, this.description);
 }
 
-/// Service for managing premium waitlist and feature interest tracking
+/// Service for managing premium access, trial, and waitlist
 class PremiumService {
   final _firestore = FirebaseFirestore.instance;
 
   static const _prefsWaitlistKey = 'premium_waitlist_joined';
   static const _prefsEmailKey = 'premium_waitlist_email';
   static const _prefsFeaturesKey = 'premium_interested_features';
+
+  static const int trialDurationDays = 7;
+
+  // ===== PREMIUM ACCESS =====
+
+  /// Get the premium access status for a user profile
+  PremiumAccessStatus getAccessStatus(UserProfile? profile) {
+    if (profile == null) return PremiumAccessStatus.none;
+    if (profile.isPremium) return PremiumAccessStatus.premium;
+
+    final trialStart = profile.premiumTrialStart;
+    if (trialStart == null) return PremiumAccessStatus.none;
+
+    final elapsed = DateTime.now().difference(trialStart).inDays;
+    final remaining = trialDurationDays - elapsed;
+
+    if (remaining > 0) return PremiumAccessStatus.trial(remaining);
+    return PremiumAccessStatus.expired;
+  }
+
+  /// Get trial days remaining (null if no trial, 0 if expired)
+  int? getTrialDaysRemaining(UserProfile profile) {
+    final trialStart = profile.premiumTrialStart;
+    if (trialStart == null) return null;
+    final remaining = trialDurationDays - DateTime.now().difference(trialStart).inDays;
+    return remaining.clamp(0, trialDurationDays);
+  }
+
+  /// Check if trial has expired
+  bool isTrialExpired(UserProfile profile) {
+    if (profile.isPremium) return false;
+    final trialStart = profile.premiumTrialStart;
+    if (trialStart == null) return false;
+    return DateTime.now().difference(trialStart).inDays >= trialDurationDays;
+  }
+
+  // ===== WAITLIST (existing) =====
 
   /// Check if user has already joined the waitlist
   Future<bool> hasJoinedWaitlist() async {

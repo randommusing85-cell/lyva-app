@@ -23,6 +23,10 @@ import 'screens/edit_profile_screen.dart';
 import 'screens/workout_coach_screen.dart';
 import 'screens/guided_setup_flow_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/ai_coaching_screen.dart';
+import 'screens/progress_photos_screen.dart';
+import 'screens/progress_photo_detail_screen.dart';
+import 'screens/cycle_insights_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -62,6 +66,10 @@ class PrimeFormApp extends ConsumerWidget {
         '/edit-profile': (context) => const EditProfileScreen(),
         '/workout-coach': (context) => const WorkoutCoachScreen(),
         '/guided-setup': (context) => const GuidedSetupFlowScreen(),
+        '/ai-coaching': (context) => const AiCoachingScreen(),
+        '/progress-photos': (context) => const ProgressPhotosScreen(),
+        '/progress-photo-detail': (context) => const ProgressPhotoDetailScreen(),
+        '/cycle-insights': (context) => const CycleInsightsScreen(),
       },
     );
   }
