@@ -131,6 +131,9 @@ class UserProfile {
   
   /// Whether to send workout day reminders
   bool notifyWorkout = true;
+
+  /// Whether to send daily cycle-aware tips (women tracking cycle only)
+  bool notifyCycle = true;
   
   /// Preferred reminder time (hour of day, 0-23)
   int reminderHour = 9;
@@ -143,8 +146,22 @@ class UserProfile {
   /// Whether the user has active premium subscription
   bool isPremium = false;
 
+  /// Cached subscription tier: 'essentials', 'premium', or null
+  String? premiumTier;
+
   /// When the user first accessed a premium feature (trial start)
   DateTime? premiumTrialStart;
+
+  // ===== USAGE CAPS (PREMIUM) =====
+
+  /// Number of AI coach messages sent this billing period
+  int aiCoachMessagesUsed = 0;
+
+  /// Number of photo analyses used this billing period
+  int photoAnalysesUsed = 0;
+
+  /// When usage counters were last reset (beginning of current billing period)
+  DateTime? usageResetDate;
 
   // ===== HELPER METHODS =====
   

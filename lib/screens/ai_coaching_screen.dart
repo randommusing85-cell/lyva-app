@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/coach_message.dart';
 import '../models/ai_insight.dart';
+import '../services/premium_service.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/coach_message_bubble.dart';
 import '../widgets/ai_insight_card.dart';
+import '../widgets/premium_gate.dart';
 
 class AiCoachingScreen extends ConsumerStatefulWidget {
   const AiCoachingScreen({super.key});
@@ -31,6 +33,12 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    ref.read(analyticsProvider).logAiCoachSessionStarted();
+  }
+
+  @override
   void dispose() {
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
@@ -39,6 +47,18 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
 
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty || _sending) return;
+
+    // Check usage cap before sending
+    final profile = await ref.read(userProfileProvider.future);
+    if (profile != null) {
+      final service = ref.read(premiumServiceProvider);
+      if (!service.canSendCoachMessage(profile)) {
+        if (mounted) {
+          _showUsageLimitDialog();
+        }
+        return;
+      }
+    }
 
     final message = text.trim();
     _inputCtrl.clear();
@@ -99,6 +119,11 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
       await repo.addCoachMessage(loadingMsg);
 
       _assistantMessageCount++;
+      ref.read(analyticsProvider).logAiCoachMessageSent();
+
+      // Increment usage counter
+      await ref.read(userProfileRepoProvider).incrementCoachMessageUsage();
+      ref.invalidate(userProfileProvider);
 
       // Extract insights every 5 assistant messages
       if (_assistantMessageCount % 5 == 0) {
@@ -157,6 +182,29 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
     }
   }
 
+  void _showUsageLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Icon(Icons.chat_bubble_outline, size: 40, color: Colors.orange.shade600),
+        title: const Text('Monthly Limit Reached'),
+        content: Text(
+          'You\'ve used all ${PremiumService.aiCoachMessageCap} AI coaching messages this month. '
+          'Your messages reset at the start of each month.\n\n'
+          'Need more? Message packs are coming soon!',
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(coachMessagesProvider);
@@ -168,13 +216,48 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
         title: const Text('AI Coach'),
         backgroundColor: AppColors.background,
         actions: [
+          // Usage counter chip
+          ref.watch(userProfileProvider).when(
+            data: (profile) {
+              if (profile == null) return const SizedBox.shrink();
+              final service = ref.read(premiumServiceProvider);
+              final remaining = service.coachMessagesRemaining(profile);
+              final used = profile.aiCoachMessagesUsed;
+              final cap = PremiumService.aiCoachMessageCap;
+              final isLow = remaining <= 10;
+              return Center(
+                child: Container(
+                  margin: const EdgeInsets.only(right: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isLow
+                        ? Colors.orange.withOpacity(0.15)
+                        : AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$used/$cap',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isLow ? Colors.orange.shade700 : AppColors.primary,
+                    ),
+                  ),
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: _clearChat,
           ),
         ],
       ),
-      body: Column(
+      body: PremiumGate(
+        feature: PremiumFeature.aiCoaching,
+        child: Column(
         children: [
           // AI Insights bar
           insightsAsync.when(
@@ -260,56 +343,102 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
           ),
 
           // Input bar
-          Container(
-            padding: EdgeInsets.only(
-              left: 16, right: 8, top: 8,
-              bottom: MediaQuery.of(context).padding.bottom + 8,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _inputCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Ask your coach...',
-                      hintStyle: const TextStyle(color: AppColors.textMuted),
-                      filled: true,
-                      fillColor: AppColors.background,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    ),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: _sendMessage,
-                    enabled: !_sending,
+          ref.watch(userProfileProvider).when(
+            data: (profile) {
+              final limitReached = profile != null &&
+                  !ref.read(premiumServiceProvider).canSendCoachMessage(profile);
+
+              if (limitReached) {
+                return Container(
+                  padding: EdgeInsets.only(
+                    left: 16, right: 16, top: 12,
+                    bottom: MediaQuery.of(context).padding.bottom + 12,
                   ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.lock_outline, size: 16, color: Colors.orange.shade600),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Monthly message limit reached (${PremiumService.aiCoachMessageCap}/${PremiumService.aiCoachMessageCap}). Resets next month.',
+                              style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Container(
+                padding: EdgeInsets.only(
+                  left: 16, right: 8, top: 8,
+                  bottom: MediaQuery.of(context).padding.bottom + 8,
                 ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: _sending
-                      ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send, color: AppColors.primary),
-                  onPressed: _sending ? null : () => _sendMessage(_inputCtrl.text),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _inputCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Ask your coach...',
+                          hintStyle: const TextStyle(color: AppColors.textMuted),
+                          filled: true,
+                          fillColor: AppColors.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: _sendMessage,
+                        enabled: !_sending,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: _sending
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send, color: AppColors.primary),
+                      onPressed: _sending ? null : () => _sendMessage(_inputCtrl.text),
+                    ),
+                  ],
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
           ),
         ],
+      ),
       ),
     );
   }

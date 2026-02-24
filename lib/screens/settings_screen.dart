@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -303,6 +304,95 @@ class SettingsScreen extends ConsumerWidget {
       default:
         return level;
     }
+  }
+
+  static void showRedeemCodeDialog(BuildContext context, WidgetRef ref) {
+    final codeController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Enter Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Enter a promo or gift code to unlock premium features.',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                UpperCaseTextFormatter(),
+              ],
+              decoration: InputDecoration(
+                hintText: 'e.g. PRIMEFORM2025',
+                prefixIcon: const Icon(Icons.card_giftcard_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: AppColors.surfaceVariant,
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isEmpty) return;
+
+              final service = PremiumService();
+              final tier = service.redeemPromoCode(code);
+
+              if (tier != null) {
+                final tierName =
+                    tier == PremiumTier.premium ? 'premium' : 'essentials';
+                final repo = ref.read(userProfileRepoProvider);
+                await repo.updatePremiumTier(tierName);
+                ref.invalidate(premiumAccessProvider);
+                ref.invalidate(userProfileProvider);
+
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${tierName[0].toUpperCase()}${tierName.substring(1)} unlocked!',
+                      ),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                }
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Invalid code. Please check and try again.'),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Redeem'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showFullDisclaimerDialog(BuildContext context) {
@@ -886,7 +976,7 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
-/// Premium section: shows navigable tiles when premium is active, otherwise feature cards
+/// Premium section: tier-aware, shows subscription management + navigable tiles
 class _PremiumSection extends ConsumerWidget {
   final dynamic profile;
 
@@ -895,42 +985,290 @@ class _PremiumSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accessAsync = ref.watch(premiumAccessProvider);
-    final hasAccess = accessAsync.valueOrNull?.hasAccess ?? false;
+    final access = accessAsync.valueOrNull;
 
-    if (hasAccess) {
-      return Column(
-        children: [
-          _SettingsTile(
-            icon: Icons.smart_toy_outlined,
-            title: 'AI Coach',
-            subtitle: 'Chat with your personal coach',
-            onTap: () => Navigator.pushNamed(context, '/ai-coaching'),
-          ),
-          _SettingsTile(
-            icon: Icons.camera_outlined,
-            title: 'Progress Photos',
-            subtitle: 'AI body analysis & tracking',
-            onTap: () => Navigator.pushNamed(context, '/progress-photos'),
-          ),
-          if (profile.trackCycle)
-            _SettingsTile(
-              icon: Icons.auto_graph_outlined,
-              title: 'Cycle Insights',
-              subtitle: 'AI predictions & symptom logging',
-              onTap: () => Navigator.pushNamed(context, '/cycle-insights'),
-            ),
-          PremiumFeatureCard(
-            feature: PremiumFeature.exportData,
-            icon: Icons.download_outlined,
-            title: 'Export Data',
-            description: 'Export your progress data to CSV',
-          ),
-        ],
-      );
+    if (access == null) return const SizedBox.shrink();
+
+    // State 1: Active subscription
+    if (access.type == PremiumAccessType.premium) {
+      return _buildSubscribedSection(context, ref, access);
     }
+
+    // State 2: Active trial
+    if (access.type == PremiumAccessType.trial) {
+      return _buildTrialSection(context, ref, access);
+    }
+
+    // State 3: Expired trial or no access — show paywall CTA + feature cards
+    return _buildNoAccessSection(context, ref);
+  }
+
+  Widget _buildSubscribedSection(
+      BuildContext context, WidgetRef ref, PremiumAccessStatus access) {
+    final tierName = access.tier == PremiumTier.premium ? 'Premium' : 'Essentials';
 
     return Column(
       children: [
+        // Subscription status card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: access.tier == PremiumTier.premium
+                  ? [AppColors.seasonAccent, AppColors.seasonAccent.withOpacity(0.8)]
+                  : [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.star, color: Colors.white, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$tierName Plan',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'All ${tierName.toLowerCase()} features unlocked',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (access.tier == PremiumTier.essentials)
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    '/paywall',
+                    arguments: {'highlightTier': 'premium'},
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Upgrade', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+            ],
+          ),
+        ),
+
+        // Manage subscription
+        _SettingsTile(
+          icon: Icons.credit_card_outlined,
+          title: 'Manage Subscription',
+          subtitle: 'Change plan or cancel',
+          onTap: () async {
+            final service = ref.read(premiumServiceProvider);
+            final url = await service.getManagementUrl();
+            if (url != null && context.mounted) {
+              launchUrl(Uri.parse(url));
+            }
+          },
+        ),
+
+        // Restore purchases
+        _SettingsTile(
+          icon: Icons.restore,
+          title: 'Restore Purchases',
+          subtitle: 'Recover your subscription',
+          onTap: () async {
+            try {
+              final service = ref.read(premiumServiceProvider);
+              await service.restorePurchases();
+              ref.invalidate(premiumAccessProvider);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Purchases restored'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Restore failed: $e')),
+                );
+              }
+            }
+          },
+        ),
+
+        _SettingsTile(
+          icon: Icons.card_giftcard_outlined,
+          title: 'Enter Code',
+          subtitle: 'Redeem a promo or gift code',
+          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
+        ),
+
+        const SizedBox(height: 8),
+
+        // Show navigable tiles for features user CAN access
+        ..._buildFeatureTiles(context, access),
+      ],
+    );
+  }
+
+  Widget _buildTrialSection(
+      BuildContext context, WidgetRef ref, PremiumAccessStatus access) {
+    return Column(
+      children: [
+        // Trial status card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: AppColors.seasonAccent.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.seasonAccent.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.seasonAccent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.timer_outlined,
+                    color: AppColors.seasonAccent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Free Trial Active',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${access.trialDaysRemaining} days remaining',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.seasonAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/paywall'),
+                style: TextButton.styleFrom(
+                  backgroundColor: AppColors.seasonAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('Subscribe',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ),
+
+        // All feature tiles during trial (trial = all access)
+        ..._buildAllFeatureTiles(context),
+
+        _SettingsTile(
+          icon: Icons.card_giftcard_outlined,
+          title: 'Enter Code',
+          subtitle: 'Redeem a promo or gift code',
+          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoAccessSection(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        // Go Premium card
+        GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/paywall'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.seasonAccent,
+                  AppColors.seasonAccent.withOpacity(0.8),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(Icons.star, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Go Premium',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Unlock all features starting at \$4.99/mo',
+                        style: TextStyle(fontSize: 13, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white),
+              ],
+            ),
+          ),
+        ),
+
+        // Feature preview cards
+        PremiumFeatureCard(
+          feature: PremiumFeature.aiCoaching,
+          icon: Icons.smart_toy_outlined,
+          title: 'AI Coach',
+          description: 'Personalized AI coaching conversations',
+        ),
+        const SizedBox(height: 8),
         PremiumFeatureCard(
           feature: PremiumFeature.progressPhotos,
           icon: Icons.camera_outlined,
@@ -939,20 +1277,119 @@ class _PremiumSection extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         PremiumFeatureCard(
-          feature: PremiumFeature.cyclePredictions,
-          icon: Icons.auto_graph_outlined,
-          title: 'Cycle Predictions',
-          description: 'AI-powered period predictions and training adjustments',
+          feature: PremiumFeature.customWorkouts,
+          icon: Icons.edit_note_outlined,
+          title: 'Custom Workouts',
+          description: 'Build your own workout routines from scratch',
         ),
         const SizedBox(height: 8),
         PremiumFeatureCard(
           feature: PremiumFeature.exportData,
           icon: Icons.download_outlined,
           title: 'Export Data',
-          description: 'Export your progress data to CSV',
+          description: 'Export your progress data as CSV or PDF',
+        ),
+
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.card_giftcard_outlined,
+          title: 'Enter Code',
+          subtitle: 'Redeem a promo or gift code',
+          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
         ),
       ],
     );
+  }
+
+  List<Widget> _buildFeatureTiles(
+      BuildContext context, PremiumAccessStatus access) {
+    final tiles = <Widget>[];
+
+    // AI features (premium tier)
+    if (access.canAccessFeature(PremiumFeature.aiCoaching)) {
+      tiles.add(_SettingsTile(
+        icon: Icons.smart_toy_outlined,
+        title: 'AI Coach',
+        subtitle: 'Chat with your personal coach',
+        onTap: () => Navigator.pushNamed(context, '/ai-coaching'),
+      ));
+    }
+
+    if (access.canAccessFeature(PremiumFeature.progressPhotos)) {
+      tiles.add(_SettingsTile(
+        icon: Icons.camera_outlined,
+        title: 'Progress Photos',
+        subtitle: 'AI body analysis & tracking',
+        onTap: () => Navigator.pushNamed(context, '/progress-photos'),
+      ));
+    }
+
+    if (access.canAccessFeature(PremiumFeature.cyclePredictions) &&
+        profile.trackCycle) {
+      tiles.add(_SettingsTile(
+        icon: Icons.auto_graph_outlined,
+        title: 'Cycle Insights',
+        subtitle: 'AI predictions & symptom logging',
+        onTap: () => Navigator.pushNamed(context, '/cycle-insights'),
+      ));
+    }
+
+    // Essentials features
+    if (access.canAccessFeature(PremiumFeature.customWorkouts)) {
+      tiles.add(_SettingsTile(
+        icon: Icons.edit_note_outlined,
+        title: 'Custom Workouts',
+        subtitle: 'Build your own training plans',
+        onTap: () => Navigator.pushNamed(context, '/saved-templates'),
+      ));
+    }
+
+    if (access.canAccessFeature(PremiumFeature.exportData)) {
+      tiles.add(_SettingsTile(
+        icon: Icons.download_outlined,
+        title: 'Export Data',
+        subtitle: 'CSV spreadsheet or PDF report',
+        onTap: () => Navigator.pushNamed(context, '/export-data'),
+      ));
+    }
+
+    return tiles;
+  }
+
+  List<Widget> _buildAllFeatureTiles(BuildContext context) {
+    return [
+      _SettingsTile(
+        icon: Icons.smart_toy_outlined,
+        title: 'AI Coach',
+        subtitle: 'Chat with your personal coach',
+        onTap: () => Navigator.pushNamed(context, '/ai-coaching'),
+      ),
+      _SettingsTile(
+        icon: Icons.camera_outlined,
+        title: 'Progress Photos',
+        subtitle: 'AI body analysis & tracking',
+        onTap: () => Navigator.pushNamed(context, '/progress-photos'),
+      ),
+      if (profile.trackCycle)
+        _SettingsTile(
+          icon: Icons.auto_graph_outlined,
+          title: 'Cycle Insights',
+          subtitle: 'AI predictions & symptom logging',
+          onTap: () => Navigator.pushNamed(context, '/cycle-insights'),
+        ),
+      _SettingsTile(
+        icon: Icons.edit_note_outlined,
+        title: 'Custom Workouts',
+        subtitle: 'Build your own training plans',
+        onTap: () => Navigator.pushNamed(context, '/saved-templates'),
+      ),
+      _SettingsTile(
+        icon: Icons.download_outlined,
+        title: 'Export Data',
+        subtitle: 'CSV spreadsheet or PDF report',
+        onTap: () => Navigator.pushNamed(context, '/export-data'),
+      ),
+    ];
   }
 }
 
@@ -1041,6 +1478,20 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
+    );
+  }
+}
+
+/// Text input formatter that converts input to uppercase
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }

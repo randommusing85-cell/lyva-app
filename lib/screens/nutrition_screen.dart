@@ -129,14 +129,6 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                 error: (e, _) => Center(child: Text('Error: $e')),
               ),
 
-              // Premium: Meal Scanner
-              PremiumFeatureCard(
-                feature: PremiumFeature.mealScanner,
-                icon: Icons.camera_alt_outlined,
-                title: 'Meal Scanner',
-                description: 'Scan your meals for instant nutrition info',
-              ),
-
               const SizedBox(height: 100),
             ],
           ),
@@ -844,6 +836,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
   }
 
   Future<void> _openScanner() async {
+    ref.read(analyticsProvider).logFeatureUsed(featureName: 'meal_scanner');
     final result = await Navigator.push<FoodScanResult>(
       context,
       MaterialPageRoute(builder: (_) => const FoodScannerScreen()),
@@ -1003,19 +996,22 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _openScanner,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    PremiumGate(
+                      feature: PremiumFeature.mealScanner,
+                      child: SizedBox(
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _openScanner,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: const Icon(Icons.qr_code_scanner, size: 22),
                         ),
-                        child: const Icon(Icons.qr_code_scanner, size: 22),
                       ),
                     ),
                   ],

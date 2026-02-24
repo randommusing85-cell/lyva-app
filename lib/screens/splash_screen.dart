@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../state/providers.dart';
 import '../services/notification_service.dart';
 import '../services/analytics_service.dart';
+import '../services/premium_service.dart';
 import 'onboarding_screen.dart';
 import 'app_shell.dart';
 
@@ -81,6 +82,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       );
     } else {
       NotificationService().setupNotifications(profile);
+
+      // Check if monthly usage counters need a reset
+      if (PremiumService.checkAndResetUsageIfNeeded(profile)) {
+        final repo = ref.read(userProfileRepoProvider);
+        await repo.saveProfile(profile);
+      }
 
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(

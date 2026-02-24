@@ -15,6 +15,9 @@ class WorkoutTemplateDoc {
   late int daysPerWeek;
   late String sex;
 
+  // Whether this is a user-created custom workout
+  bool isCustom = false;
+
   // store full JSON for v1 (fast shipping)
   late String json;
 }

@@ -33,23 +33,28 @@ const WorkoutTemplateDocSchema = CollectionSchema(
       name: r'equipment',
       type: IsarType.string,
     ),
-    r'json': PropertySchema(
+    r'isCustom': PropertySchema(
       id: 3,
+      name: r'isCustom',
+      type: IsarType.bool,
+    ),
+    r'json': PropertySchema(
+      id: 4,
       name: r'json',
       type: IsarType.string,
     ),
     r'level': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'level',
       type: IsarType.string,
     ),
     r'planName': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'planName',
       type: IsarType.string,
     ),
     r'sex': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'sex',
       type: IsarType.string,
     )
@@ -91,10 +96,11 @@ void _workoutTemplateDocSerialize(
   writer.writeDateTime(offsets[0], object.createdAt);
   writer.writeLong(offsets[1], object.daysPerWeek);
   writer.writeString(offsets[2], object.equipment);
-  writer.writeString(offsets[3], object.json);
-  writer.writeString(offsets[4], object.level);
-  writer.writeString(offsets[5], object.planName);
-  writer.writeString(offsets[6], object.sex);
+  writer.writeBool(offsets[3], object.isCustom);
+  writer.writeString(offsets[4], object.json);
+  writer.writeString(offsets[5], object.level);
+  writer.writeString(offsets[6], object.planName);
+  writer.writeString(offsets[7], object.sex);
 }
 
 WorkoutTemplateDoc _workoutTemplateDocDeserialize(
@@ -108,10 +114,11 @@ WorkoutTemplateDoc _workoutTemplateDocDeserialize(
   object.daysPerWeek = reader.readLong(offsets[1]);
   object.equipment = reader.readString(offsets[2]);
   object.id = id;
-  object.json = reader.readString(offsets[3]);
-  object.level = reader.readString(offsets[4]);
-  object.planName = reader.readString(offsets[5]);
-  object.sex = reader.readString(offsets[6]);
+  object.isCustom = reader.readBool(offsets[3]);
+  object.json = reader.readString(offsets[4]);
+  object.level = reader.readString(offsets[5]);
+  object.planName = reader.readString(offsets[6]);
+  object.sex = reader.readString(offsets[7]);
   return object;
 }
 
@@ -129,12 +136,14 @@ P _workoutTemplateDocDeserializeProp<P>(
     case 2:
       return (reader.readString(offset)) as P;
     case 3:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 4:
       return (reader.readString(offset)) as P;
     case 5:
       return (reader.readString(offset)) as P;
     case 6:
+      return (reader.readString(offset)) as P;
+    case 7:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -537,6 +546,16 @@ extension WorkoutTemplateDocQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QAfterFilterCondition>
+      isCustomEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isCustom',
+        value: value,
       ));
     });
   }
@@ -1137,6 +1156,20 @@ extension WorkoutTemplateDocQuerySortBy
   }
 
   QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QAfterSortBy>
+      sortByIsCustom() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCustom', Sort.asc);
+    });
+  }
+
+  QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QAfterSortBy>
+      sortByIsCustomDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCustom', Sort.desc);
+    });
+  }
+
+  QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QAfterSortBy>
       sortByJson() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'json', Sort.asc);
@@ -1252,6 +1285,20 @@ extension WorkoutTemplateDocQuerySortThenBy
   }
 
   QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QAfterSortBy>
+      thenByIsCustom() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCustom', Sort.asc);
+    });
+  }
+
+  QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QAfterSortBy>
+      thenByIsCustomDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCustom', Sort.desc);
+    });
+  }
+
+  QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QAfterSortBy>
       thenByJson() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'json', Sort.asc);
@@ -1332,6 +1379,13 @@ extension WorkoutTemplateDocQueryWhereDistinct
   }
 
   QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QDistinct>
+      distinctByIsCustom() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isCustom');
+    });
+  }
+
+  QueryBuilder<WorkoutTemplateDoc, WorkoutTemplateDoc, QDistinct>
       distinctByJson({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'json', caseSensitive: caseSensitive);
@@ -1386,6 +1440,12 @@ extension WorkoutTemplateDocQueryProperty
       equipmentProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'equipment');
+    });
+  }
+
+  QueryBuilder<WorkoutTemplateDoc, bool, QQueryOperations> isCustomProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isCustom');
     });
   }
 

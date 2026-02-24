@@ -207,7 +207,67 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time, // Daily repeat
       payload: 'cycle',
+    );
+  }
+
+  /// Schedule period-approaching notification (ID 21)
+  /// Fires when period is <= 2 days away based on cycle calculator
+  Future<void> schedulePeriodApproachingNotification({
+    required UserProfile profile,
+    required int hour,
+    required int minute,
+  }) async {
+    if (!profile.trackCycle) {
+      await _notifications.cancel(21);
+      return;
+    }
+
+    final daysUntil = CycleCalculator.getDaysUntilNextPeriod(profile);
+    if (daysUntil == null || daysUntil > 2) {
+      await _notifications.cancel(21);
+      return;
+    }
+
+    final String title;
+    final String body;
+    if (daysUntil <= 0) {
+      title = 'Period expected today';
+      body = 'Take it easy and listen to your body.';
+    } else if (daysUntil == 1) {
+      title = 'Period expected tomorrow';
+      body = 'You may want to plan lighter workouts.';
+    } else {
+      title = 'Period in 2 days';
+      body = 'Consider adjusting your training intensity.';
+    }
+
+    await _notifications.cancel(21); // Cancel existing
+
+    await _notifications.zonedSchedule(
+      21,
+      title,
+      body,
+      _nextInstanceOfTime(hour, minute),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'cycle_reminder',
+          'Cycle-Aware Tips',
+          channelDescription: 'Training tips based on your cycle phase',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: 'cycle_period_approaching',
     );
   }
 
@@ -250,13 +310,21 @@ class NotificationService {
       }
     }
 
-    // Schedule cycle notification if applicable
-    if (profile.sex == 'female' && profile.trackCycle) {
+    // Schedule cycle notifications if applicable
+    if (profile.sex == 'female' && profile.trackCycle && profile.notifyCycle) {
       await scheduleCycleAwareNotification(
         profile: profile,
         hour: profile.reminderHour,
         minute: profile.reminderMinute,
       );
+      await schedulePeriodApproachingNotification(
+        profile: profile,
+        hour: profile.reminderHour,
+        minute: profile.reminderMinute,
+      );
+    } else {
+      await cancel(20); // Cycle phase tip
+      await cancel(21); // Period approaching
     }
   }
 

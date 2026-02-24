@@ -6,7 +6,7 @@ import '../services/premium_service.dart';
 import '../services/analytics_service.dart';
 import '../state/providers.dart';
 
-/// A widget that gates premium content behind trial/subscription
+/// A widget that gates premium content behind trial/subscription with tier awareness
 class PremiumGate extends ConsumerWidget {
   final PremiumFeature feature;
   final Widget child;
@@ -27,7 +27,8 @@ class PremiumGate extends ConsumerWidget {
 
     return accessAsync.when(
       data: (access) {
-        if (access.hasAccess) return child;
+        // Tier-aware: check if user can access THIS specific feature
+        if (access.canAccessFeature(feature)) return child;
 
         // Track gate encountered
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -38,88 +39,103 @@ class PremiumGate extends ConsumerWidget {
           );
         });
 
-        if (access.type == PremiumAccessType.none) {
-          // No trial started - offer trial
-          return GestureDetector(
-            onTap: () => _showTrialOfferSheet(context, ref, feature),
-            child: Stack(
-              children: [
-                Opacity(opacity: 0.5, child: IgnorePointer(child: child)),
-                Positioned.fill(
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.seasonAccent,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.star, size: 14, color: Colors.white),
-                          SizedBox(width: 6),
-                          Text(
-                            'Try Free for 7 Days',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+        // Case 1: Essentials user trying to access a Premium-tier feature
+        if (access.tier == PremiumTier.essentials &&
+            feature.requiredTier == PremiumTier.premium) {
+          return _buildOverlay(
+            context: context,
+            child: child,
+            opacity: 0.4,
+            badgeColor: AppColors.seasonAccent,
+            icon: Icons.arrow_upward,
+            label: 'Upgrade to Premium',
+            onTap: () => Navigator.pushNamed(
+              context,
+              '/paywall',
+              arguments: {'highlightTier': 'premium'},
             ),
           );
         }
 
-        // Trial expired - show upgrade
-        return GestureDetector(
-          onTap: () => _showPremiumSheet(context, feature),
-          child: Stack(
-            children: [
-              Opacity(opacity: 0.4, child: IgnorePointer(child: child)),
-              Positioned.fill(
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.textMuted,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lock, size: 14, color: Colors.white),
-                        SizedBox(width: 6),
-                        Text(
-                          'Upgrade to Premium',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        // Case 2: No trial started — offer free trial
+        if (access.type == PremiumAccessType.none) {
+          return _buildOverlay(
+            context: context,
+            child: child,
+            opacity: 0.5,
+            badgeColor: AppColors.seasonAccent,
+            icon: Icons.star,
+            label: 'Try Free for 7 Days',
+            onTap: () => _showTrialOfferSheet(context, ref, feature),
+          );
+        }
+
+        // Case 3: Trial expired or no subscription — direct to paywall
+        return _buildOverlay(
+          context: context,
+          child: child,
+          opacity: 0.4,
+          badgeColor: AppColors.textMuted,
+          icon: Icons.lock,
+          label: 'Subscribe to Unlock',
+          onTap: () => Navigator.pushNamed(context, '/paywall'),
         );
       },
       loading: () => child,
       error: (_, __) => child,
     );
   }
+
+  Widget _buildOverlay({
+    required BuildContext context,
+    required Widget child,
+    required double opacity,
+    required Color badgeColor,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Opacity(opacity: opacity, child: IgnorePointer(child: child)),
+          Positioned.fill(
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 14, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Show trial offer bottom sheet
-void _showTrialOfferSheet(BuildContext context, WidgetRef ref, PremiumFeature feature) {
+void _showTrialOfferSheet(
+    BuildContext context, WidgetRef ref, PremiumFeature feature) {
   showModalBottomSheet(
     context: context,
     shape: const RoundedRectangleBorder(
@@ -132,7 +148,8 @@ void _showTrialOfferSheet(BuildContext context, WidgetRef ref, PremiumFeature fe
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
                 color: AppColors.textMuted.withOpacity(0.3),
@@ -140,10 +157,14 @@ void _showTrialOfferSheet(BuildContext context, WidgetRef ref, PremiumFeature fe
               ),
             ),
             Container(
-              width: 64, height: 64,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.seasonAccent, AppColors.seasonAccent.withOpacity(0.7)],
+                  colors: [
+                    AppColors.seasonAccent,
+                    AppColors.seasonAccent.withOpacity(0.7),
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(32),
               ),
@@ -152,13 +173,17 @@ void _showTrialOfferSheet(BuildContext context, WidgetRef ref, PremiumFeature fe
             const SizedBox(height: 16),
             const Text(
               'Start Your Free Trial',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
               'Try ${feature.name} and all premium features free for 7 days.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+              style: const TextStyle(
+                  fontSize: 15, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -175,14 +200,32 @@ void _showTrialOfferSheet(BuildContext context, WidgetRef ref, PremiumFeature fe
                   backgroundColor: AppColors.seasonAccent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Start 7-Day Free Trial', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                child: const Text('Start 7-Day Free Trial',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ),
             const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                if (ctx.mounted) Navigator.pop(ctx);
+                Navigator.pushNamed(context, '/paywall');
+              },
+              child: const Text(
+                'View subscription plans',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
             const Text(
-              'No credit card required',
+              'No credit card required for trial',
               style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           ],
@@ -192,7 +235,7 @@ void _showTrialOfferSheet(BuildContext context, WidgetRef ref, PremiumFeature fe
   );
 }
 
-/// A button that shows the premium waitlist sheet
+/// A button that navigates to the paywall
 class PremiumButton extends StatelessWidget {
   final PremiumFeature feature;
   final String label;
@@ -208,7 +251,11 @@ class PremiumButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () => _showPremiumSheet(context, feature),
+      onPressed: () {
+        final analytics = AnalyticsService();
+        analytics.logPremiumFeatureTapped(featureId: feature.id);
+        Navigator.pushNamed(context, '/paywall');
+      },
       icon: Icon(icon ?? Icons.star, size: 16),
       label: Row(
         mainAxisSize: MainAxisSize.min,
@@ -221,9 +268,11 @@ class PremiumButton extends StatelessWidget {
               color: AppColors.seasonAccent.withOpacity(0.2),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Text(
-              'Soon',
-              style: TextStyle(
+            child: Text(
+              feature.requiredTier == PremiumTier.premium
+                  ? 'Premium'
+                  : 'Essentials',
+              style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: AppColors.seasonAccent,
@@ -242,7 +291,7 @@ class PremiumButton extends StatelessWidget {
   }
 }
 
-/// A card that shows a premium feature is coming soon
+/// A card that shows a premium feature and navigates to paywall
 class PremiumFeatureCard extends StatelessWidget {
   final PremiumFeature feature;
   final IconData icon;
@@ -260,7 +309,11 @@ class PremiumFeatureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _showPremiumSheet(context, feature),
+      onTap: () {
+        final analytics = AnalyticsService();
+        analytics.logPremiumFeatureTapped(featureId: feature.id);
+        Navigator.pushNamed(context, '/paywall');
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -315,12 +368,16 @@ class PremiumFeatureCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.seasonAccent,
+                          color: feature.requiredTier == PremiumTier.premium
+                              ? AppColors.seasonAccent
+                              : AppColors.primary,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
-                          'Coming Soon',
-                          style: TextStyle(
+                        child: Text(
+                          feature.requiredTier == PremiumTier.premium
+                              ? 'Premium'
+                              : 'Essentials',
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -347,491 +404,6 @@ class PremiumFeatureCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Show the premium waitlist bottom sheet
-void _showPremiumSheet(BuildContext context, PremiumFeature feature) {
-  // Track feature interest
-  final premiumService = PremiumService();
-  premiumService.trackFeatureInterest(feature);
-
-  final analytics = AnalyticsService();
-  analytics.logPremiumFeatureTapped(featureId: feature.id);
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (ctx) => _PremiumWaitlistSheet(feature: feature),
-  );
-}
-
-/// Premium waitlist signup sheet
-class _PremiumWaitlistSheet extends StatefulWidget {
-  final PremiumFeature feature;
-
-  const _PremiumWaitlistSheet({required this.feature});
-
-  @override
-  State<_PremiumWaitlistSheet> createState() => _PremiumWaitlistSheetState();
-}
-
-class _PremiumWaitlistSheetState extends State<_PremiumWaitlistSheet> {
-  final _emailController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
-  bool _loading = false;
-  bool _joined = false;
-  String? _existingEmail;
-
-  final Set<PremiumFeature> _selectedFeatures = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedFeatures.add(widget.feature);
-    _checkExistingWaitlist();
-
-    // Track waitlist sheet viewed
-    final analytics = AnalyticsService();
-    analytics.logPremiumWaitlistViewed(featureId: widget.feature.id);
-  }
-
-  Future<void> _checkExistingWaitlist() async {
-    final premiumService = PremiumService();
-    final hasJoined = await premiumService.hasJoinedWaitlist();
-    final email = await premiumService.getWaitlistEmail();
-
-    if (mounted) {
-      setState(() {
-        _joined = hasJoined;
-        _existingEmail = email;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _joinWaitlist() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _loading = true);
-
-    try {
-      final premiumService = PremiumService();
-      await premiumService.joinWaitlist(
-        email: _emailController.text.trim(),
-        interestedFeatures: _selectedFeatures.toList(),
-      );
-
-      // Track analytics
-      final analytics = AnalyticsService();
-      await analytics.logPremiumWaitlistJoined(
-        email: _emailController.text.trim(),
-        features: _selectedFeatures.map((f) => f.id).toList(),
-      );
-
-      if (mounted) {
-        setState(() {
-          _joined = true;
-          _existingEmail = _emailController.text.trim();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.textMuted.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-
-              // Header
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.seasonAccent,
-                          AppColors.seasonAccent.withOpacity(0.7),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Icon(
-                      Icons.star,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Premium Features',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          'Coming soon!',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.seasonAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              if (_joined) ...[
-                // Already joined state
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.check_circle,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "You're on the list!",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            if (_existingEmail != null)
-                              Text(
-                                "We'll notify $_existingEmail",
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "We're working hard to bring you amazing premium features. Stay tuned!",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ] else ...[
-                // Feature highlight
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.feature.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.feature.description,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Feature selection
-                const Text(
-                  'What features interest you?',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: PremiumFeature.values.map((feature) {
-                    final isSelected = _selectedFeatures.contains(feature);
-                    return ChoiceChip(
-                      label: Text(feature.name),
-                      selected: isSelected,
-                      selectedColor: AppColors.primary.withOpacity(0.2),
-                      onSelected: (selected) {
-                        setState(() {
-                          if (selected) {
-                            _selectedFeatures.add(feature);
-                          } else {
-                            _selectedFeatures.remove(feature);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Email signup form
-                const Text(
-                  'Get notified when premium launches',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Form(
-                  key: _formKey,
-                  child: TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      hintText: 'Enter your email',
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      prefixIcon: const Icon(Icons.email_outlined),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                          .hasMatch(value)) {
-                        return 'Please enter a valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _joinWaitlist,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.seasonAccent,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppColors.seasonAccent.withOpacity(0.5),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Join the Waitlist',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                const Center(
-                  child: Text(
-                    "We'll only email you about premium features",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                const Center(
-                  child: Text(
-                    'Questions? Reach us at kineticiq.ai@gmail.com',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 20),
-
-              // Preview of premium features
-              const Text(
-                'Coming in Premium',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _FeaturePreviewRow(
-                icon: Icons.chat_bubble_outline,
-                title: 'AI Coaching',
-                description: 'Personalized coaching conversations',
-              ),
-              const SizedBox(height: 8),
-              _FeaturePreviewRow(
-                icon: Icons.psychology_outlined,
-                title: 'AI Memory',
-                description: 'AI learns your patterns over time',
-              ),
-              const SizedBox(height: 8),
-              _FeaturePreviewRow(
-                icon: Icons.camera_outlined,
-                title: 'Progress Photos',
-                description: 'AI body analysis and celeb comparisons',
-              ),
-              const SizedBox(height: 8),
-              _FeaturePreviewRow(
-                icon: Icons.auto_graph_outlined,
-                title: 'Cycle Predictions',
-                description: 'AI-powered period and training predictions',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FeaturePreviewRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-
-  const _FeaturePreviewRow({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppColors.textMuted),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                description,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

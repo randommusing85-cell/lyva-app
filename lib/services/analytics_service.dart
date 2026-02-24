@@ -592,4 +592,87 @@ class AnalyticsService {
       },
     );
   }
+
+  // ===== ADVANCED ANALYTICS (Premium) =====
+
+  Future<void> logAdvancedAnalyticsViewed({required String dateRange}) async {
+    await _analytics.logEvent(
+      name: 'advanced_analytics_viewed',
+      parameters: {'date_range': dateRange},
+    );
+  }
+
+  // ===== EXPORT DATA (Premium) =====
+
+  Future<void> logDataExported({
+    required String format,
+    required List<String> dataTypes,
+  }) async {
+    await _analytics.logEvent(
+      name: 'data_exported',
+      parameters: {
+        'format': format,
+        'data_types': dataTypes.join(','),
+      },
+    );
+  }
+
+  // ===== CUSTOM WORKOUTS (Premium) =====
+
+  Future<void> logCustomWorkoutCreated({
+    required int daysPerWeek,
+    required int totalExercises,
+  }) async {
+    await _analytics.logEvent(
+      name: 'custom_workout_created',
+      parameters: {
+        'days_per_week': daysPerWeek,
+        'total_exercises': totalExercises,
+      },
+    );
+  }
+
+  Future<void> logCustomWorkoutActivated() async {
+    await _analytics.logEvent(name: 'custom_workout_activated');
+  }
+
+  // ===== SUBSCRIPTION EVENTS =====
+
+  Future<void> logPaywallViewed({String? source}) async {
+    await _analytics.logEvent(
+      name: 'paywall_viewed',
+      parameters: {'source': source ?? 'unknown'},
+    );
+  }
+
+  Future<void> logSubscriptionStarted({
+    required String tier,
+    required String period,
+  }) async {
+    await _analytics.logEvent(
+      name: 'subscription_started',
+      parameters: {'tier': tier, 'period': period},
+    );
+  }
+
+  Future<void> logSubscriptionRestored({required String tier}) async {
+    await _analytics.logEvent(
+      name: 'subscription_restored',
+      parameters: {'tier': tier},
+    );
+  }
+
+  Future<void> logSubscriptionUpgraded({
+    required String fromTier,
+    required String toTier,
+  }) async {
+    await _analytics.logEvent(
+      name: 'subscription_upgraded',
+      parameters: {'from_tier': fromTier, 'to_tier': toTier},
+    );
+  }
+
+  Future<void> logPaywallDismissed() async {
+    await _analytics.logEvent(name: 'paywall_dismissed');
+  }
 }

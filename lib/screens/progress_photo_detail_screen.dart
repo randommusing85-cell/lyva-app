@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import '../models/progress_photo.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
+import '../services/analytics_service.dart';
+import '../services/premium_service.dart';
 
 class ProgressPhotoDetailScreen extends ConsumerStatefulWidget {
   const ProgressPhotoDetailScreen({super.key});
@@ -20,6 +22,16 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
   bool _analyzing = false;
 
   Future<void> _analyzePhoto(ProgressPhoto photo) async {
+    // Check usage cap before analyzing
+    final profile = await ref.read(userProfileProvider.future);
+    if (profile != null) {
+      final service = ref.read(premiumServiceProvider);
+      if (!service.canAnalyzePhoto(profile)) {
+        if (mounted) _showPhotoLimitDialog();
+        return;
+      }
+    }
+
     setState(() => _analyzing = true);
 
     try {
@@ -28,7 +40,6 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
       final base64Image = base64Encode(imageBytes);
 
       // Build user context
-      final profile = await ref.read(userProfileProvider.future);
       final userContext = {
         'sex': profile?.sex,
         'age': profile?.age,
@@ -47,6 +58,11 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
       photo.analysisComplete = true;
       photo.analysisRequested = true;
       await repo.saveProgressPhoto(photo);
+      ref.read(analyticsProvider).logProgressPhotoAnalyzed();
+
+      // Increment usage counter
+      await ref.read(userProfileRepoProvider).incrementPhotoAnalysisUsage();
+      ref.invalidate(userProfileProvider);
 
       if (mounted) setState(() {});
     } catch (e) {
@@ -58,6 +74,29 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
     } finally {
       if (mounted) setState(() => _analyzing = false);
     }
+  }
+
+  void _showPhotoLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Icon(Icons.photo_camera_outlined, size: 40, color: Colors.orange.shade600),
+        title: const Text('Monthly Limit Reached'),
+        content: Text(
+          'You\'ve used all ${PremiumService.photoAnalysisCap} photo analyses this month. '
+          'Your analyses reset at the start of each month.\n\n'
+          'Need more? Analysis packs are coming soon!',
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -213,32 +252,61 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
                 ),
               ],
             ] else ...[
-              // Analyze button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _analyzing ? null : () => _analyzePhoto(photo),
-                  icon: _analyzing
-                      ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.auto_awesome),
-                  label: Text(_analyzing ? 'Analyzing...' : 'Analyze Photo'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.seasonAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Center(
-                child: Text(
-                  'Get AI-powered body composition and progress analysis',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                ),
+              // Analyze button with usage info
+              ref.watch(userProfileProvider).when(
+                data: (currentProfile) {
+                  final service = ref.read(premiumServiceProvider);
+                  final remaining = currentProfile != null
+                      ? service.photoAnalysesRemaining(currentProfile)
+                      : PremiumService.photoAnalysisCap;
+                  final used = currentProfile?.photoAnalysesUsed ?? 0;
+                  final cap = PremiumService.photoAnalysisCap;
+                  final limitReached = remaining <= 0;
+
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: (_analyzing || limitReached) ? null : () => _analyzePhoto(photo),
+                          icon: _analyzing
+                              ? const SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : Icon(limitReached ? Icons.lock_outline : Icons.auto_awesome),
+                          label: Text(
+                            _analyzing
+                                ? 'Analyzing...'
+                                : limitReached
+                                    ? 'Limit Reached'
+                                    : 'Analyze Photo',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: limitReached ? Colors.grey.shade400 : AppColors.seasonAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          limitReached
+                              ? 'Monthly limit reached ($used/$cap). Resets next month.'
+                              : 'AI-powered body analysis  ·  $used/$cap used this month',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: limitReached ? Colors.orange.shade700 : AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
               ),
             ],
           ],

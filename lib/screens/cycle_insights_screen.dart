@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 
 import '../models/cycle_log.dart';
 import '../models/cycle_prediction.dart';
+import '../services/premium_service.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cycle_phase_card.dart';
+import '../widgets/premium_gate.dart';
 
 class CycleInsightsScreen extends ConsumerStatefulWidget {
   const CycleInsightsScreen({super.key});
@@ -89,6 +91,7 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
 
       await repo.saveCyclePrediction(prediction);
       ref.invalidate(latestCyclePredictionProvider);
+      ref.read(analyticsProvider).logCyclePredictionGenerated();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -111,6 +114,10 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
       ..severity = _severity;
 
     await repo.saveCycleLog(log);
+    ref.read(analyticsProvider).logCycleSymptomLogged(
+      symptomType: _selectedSymptom!,
+      severity: _severity,
+    );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -158,7 +165,9 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
         title: const Text('Cycle Insights'),
         backgroundColor: AppColors.background,
       ),
-      body: SingleChildScrollView(
+      body: PremiumGate(
+        feature: PremiumFeature.cyclePredictions,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,6 +342,7 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
       ),
     );
   }

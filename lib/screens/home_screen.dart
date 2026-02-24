@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../models/meal_log.dart';
 import '../models/workout_template_doc.dart';
+import '../services/premium_service.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/circular_progress_ring.dart';
@@ -783,27 +784,35 @@ class _PremiumQuickActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accessAsync = ref.watch(premiumAccessProvider);
-    final hasAccess = accessAsync.valueOrNull?.hasAccess ?? false;
+    final access = accessAsync.valueOrNull;
 
-    if (!hasAccess) return const SizedBox.shrink();
+    // AI Coach and Progress Photos are premium-tier features
+    final canAccessCoach =
+        access?.canAccessFeature(PremiumFeature.aiCoaching) ?? false;
+    final canAccessPhotos =
+        access?.canAccessFeature(PremiumFeature.progressPhotos) ?? false;
+
+    if (!canAccessCoach && !canAccessPhotos) return const SizedBox.shrink();
 
     return Row(
       children: [
-        Expanded(
-          child: _QuickActionCard(
-            emoji: '🤖',
-            label: 'AI Coach',
-            onTap: () => Navigator.pushNamed(context, '/ai-coaching'),
+        if (canAccessCoach)
+          Expanded(
+            child: _QuickActionCard(
+              emoji: '🤖',
+              label: 'AI Coach',
+              onTap: () => Navigator.pushNamed(context, '/ai-coaching'),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionCard(
-            emoji: '📸',
-            label: 'Photos',
-            onTap: () => Navigator.pushNamed(context, '/progress-photos'),
+        if (canAccessCoach && canAccessPhotos) const SizedBox(width: 12),
+        if (canAccessPhotos)
+          Expanded(
+            child: _QuickActionCard(
+              emoji: '📸',
+              label: 'Photos',
+              onTap: () => Navigator.pushNamed(context, '/progress-photos'),
+            ),
           ),
-        ),
       ],
     );
   }

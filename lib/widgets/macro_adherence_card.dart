@@ -12,9 +12,7 @@ class MacroAdherenceCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final planAsync = ref.watch(activePlanProvider);
-    // TODO: Implement weeklyMacroTotalsProvider in providers.dart
     final macrosAsync = ref.watch(weeklyMacroTotalsProvider);
-    //return const SizedBox.shrink(); // Hide widget until provider is implemented
 
     return planAsync.when(
       loading: () => const SizedBox.shrink(),

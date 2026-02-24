@@ -43,6 +43,19 @@ class PrimeRepo {
         .watch(fireImmediately: true);
   }
 
+  /// Get check-ins within a date range (for analytics/export)
+  Future<List<CheckIn>> getCheckInsInDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final isar = await IsarDb.instance();
+    return isar.checkIns
+        .filter()
+        .tsBetween(start, end)
+        .sortByTsDesc()
+        .findAll();
+  }
+
   /* =========================
    * MEAL LOGS
    * ========================= */
@@ -256,6 +269,30 @@ class PrimeRepo {
   Future<WorkoutTemplateDoc?> getLatestWorkoutTemplate() async {
     final isar = await IsarDb.instance();
     return isar.workoutTemplateDocs.where().sortByCreatedAtDesc().findFirst();
+  }
+
+  /// Get all custom workout templates.
+  Future<List<WorkoutTemplateDoc>> getCustomTemplates() async {
+    final isar = await IsarDb.instance();
+    return isar.workoutTemplateDocs
+        .filter()
+        .isCustomEqualTo(true)
+        .sortByCreatedAtDesc()
+        .findAll();
+  }
+
+  /// Get all workout templates.
+  Future<List<WorkoutTemplateDoc>> getAllWorkoutTemplates() async {
+    final isar = await IsarDb.instance();
+    return isar.workoutTemplateDocs.where().sortByCreatedAtDesc().findAll();
+  }
+
+  /// Delete a workout template by ID.
+  Future<void> deleteWorkoutTemplate(Id templateId) async {
+    final isar = await IsarDb.instance();
+    await isar.writeTxn(() async {
+      await isar.workoutTemplateDocs.delete(templateId);
+    });
   }
 
   /// Update an existing workout template's JSON (for exercise customization)

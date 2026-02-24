@@ -413,12 +413,7 @@ class _WorkoutCoachScreenState extends ConsumerState<WorkoutCoachScreen> {
                 const SizedBox(height: 12),
 
                 // Premium: Custom Workouts
-                PremiumFeatureCard(
-                  feature: PremiumFeature.customWorkouts,
-                  icon: Icons.edit_note_outlined,
-                  title: 'Custom Workouts',
-                  description: 'Build your own workout routines from scratch',
-                ),
+                _CustomWorkoutsTile(),
 
                 const SizedBox(height: 32),
               ],
@@ -549,6 +544,34 @@ class _ActionCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Conditional tile: if user can access custom workouts → navigable, else feature card.
+class _CustomWorkoutsTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accessAsync = ref.watch(premiumAccessProvider);
+    final canAccess = accessAsync.valueOrNull
+            ?.canAccessFeature(PremiumFeature.customWorkouts) ??
+        false;
+
+    if (canAccess) {
+      return _ActionCard(
+        icon: Icons.edit_note_outlined,
+        title: 'Custom Workouts',
+        subtitle: 'Build your own routines',
+        locked: false,
+        onTap: () => Navigator.pushNamed(context, '/saved-templates'),
+      );
+    }
+
+    return PremiumFeatureCard(
+      feature: PremiumFeature.customWorkouts,
+      icon: Icons.edit_note_outlined,
+      title: 'Custom Workouts',
+      description: 'Build your own workout routines from scratch',
     );
   }
 }

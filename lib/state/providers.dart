@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import '../repos/prime_repo.dart';
 import '../repos/user_profile_repo.dart';
 import '../models/checkin.dart';
@@ -16,6 +19,7 @@ import '../services/analytics_service.dart';
 import '../services/food_api_service.dart';
 import '../services/step_tracking_service.dart';
 import '../services/premium_service.dart';
+import '../services/export_service.dart';
 import '../models/food_item.dart';
 
 // ============================================================================
@@ -299,11 +303,31 @@ final weeklyStepsProvider = FutureProvider.autoDispose<Map<DateTime, int>>((ref)
 
 final premiumServiceProvider = Provider<PremiumService>((ref) => PremiumService());
 
-/// Premium access status (premium, trial, expired, or none)
+/// Premium access status — checks RevenueCat subscription first, then local trial
 final premiumAccessProvider = FutureProvider.autoDispose<PremiumAccessStatus>((ref) async {
+  // Watch for real-time subscription changes from RevenueCat
+  ref.watch(customerInfoStreamProvider);
   final profile = await ref.watch(userProfileProvider.future);
   final service = ref.watch(premiumServiceProvider);
-  return service.getAccessStatus(profile);
+  return service.getAccessStatusAsync(profile);
+});
+
+/// RevenueCat offerings (for paywall display)
+final offeringsProvider = FutureProvider<Offerings>((ref) async {
+  final service = ref.watch(premiumServiceProvider);
+  return service.getOfferings();
+});
+
+/// Real-time subscription updates from RevenueCat
+final customerInfoStreamProvider = StreamProvider<CustomerInfo>((ref) {
+  final controller = StreamController<CustomerInfo>();
+  void listener(CustomerInfo info) => controller.add(info);
+  Purchases.addCustomerInfoUpdateListener(listener);
+  ref.onDispose(() {
+    Purchases.removeCustomerInfoUpdateListener(listener);
+    controller.close();
+  });
+  return controller.stream;
 });
 
 // ============================================================================
@@ -350,4 +374,49 @@ final latestCyclePredictionProvider = FutureProvider.autoDispose<CyclePrediction
 final cycleLogsProvider = StreamProvider.autoDispose<List<CycleLog>>((ref) {
   final repo = ref.watch(primeRepoProvider);
   return repo.watchCycleLogs();
+});
+
+// ============================================================================
+// ADVANCED ANALYTICS PROVIDERS
+// ============================================================================
+
+/// Extended check-ins by limit (for 90-day analytics)
+final extendedCheckInsProvider =
+    FutureProvider.autoDispose.family<List<CheckIn>, int>((ref, limit) async {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.latestCheckIns(limit: limit);
+});
+
+/// Monthly macro totals (30 days)
+final monthlyMacroTotalsProvider =
+    FutureProvider.autoDispose<List<DailyMacroTotal>>((ref) async {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.getDailyMacroTotals(30);
+});
+
+/// Quarterly macro totals (90 days)
+final quarterlyMacroTotalsProvider =
+    FutureProvider.autoDispose<List<DailyMacroTotal>>((ref) async {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.getDailyMacroTotals(90);
+});
+
+// ============================================================================
+// CUSTOM WORKOUT TEMPLATES
+// ============================================================================
+
+/// Custom (user-created) workout templates
+final customTemplatesProvider =
+    FutureProvider.autoDispose<List<WorkoutTemplateDoc>>((ref) async {
+  final repo = ref.watch(primeRepoProvider);
+  return repo.getCustomTemplates();
+});
+
+// ============================================================================
+// EXPORT SERVICE
+// ============================================================================
+
+final exportServiceProvider = Provider<ExportService>((ref) {
+  final repo = ref.watch(primeRepoProvider);
+  return ExportService(repo);
 });

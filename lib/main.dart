@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
+import 'services/premium_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/app_shell.dart';
 import 'screens/plan_screen.dart';
@@ -27,6 +30,12 @@ import 'screens/ai_coaching_screen.dart';
 import 'screens/progress_photos_screen.dart';
 import 'screens/progress_photo_detail_screen.dart';
 import 'screens/cycle_insights_screen.dart';
+import 'screens/advanced_analytics_screen.dart';
+import 'screens/export_data_screen.dart';
+import 'screens/saved_templates_screen.dart';
+import 'screens/custom_workout_builder_screen.dart';
+import 'screens/exercise_picker_screen.dart';
+import 'screens/paywall_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -34,6 +43,13 @@ void main() async {
   
   // Initialize notification service
   await NotificationService().init();
+
+  // Initialize RevenueCat for in-app subscriptions
+  await PremiumService.initRevenueCat(
+    apiKey: Platform.isIOS
+        ? 'appl_YOUR_IOS_REVENUECAT_KEY'   // Replace with your iOS key
+        : 'goog_YOUR_ANDROID_REVENUECAT_KEY', // Replace with your Android key
+  );
 
   runApp(const ProviderScope(child: PrimeFormApp()));
 }
@@ -70,6 +86,21 @@ class PrimeFormApp extends ConsumerWidget {
         '/progress-photos': (context) => const ProgressPhotosScreen(),
         '/progress-photo-detail': (context) => const ProgressPhotoDetailScreen(),
         '/cycle-insights': (context) => const CycleInsightsScreen(),
+        '/advanced-analytics': (context) => const AdvancedAnalyticsScreen(),
+        '/export-data': (context) => const ExportDataScreen(),
+        '/saved-templates': (context) => const SavedTemplatesScreen(),
+        '/custom-workout-builder': (context) => const CustomWorkoutBuilderScreen(),
+        '/exercise-picker': (context) => const ExercisePickerScreen(),
+        '/paywall': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          PremiumTier? highlightTier;
+          if (args is Map) {
+            final tierStr = args['highlightTier'];
+            if (tierStr == 'premium') highlightTier = PremiumTier.premium;
+            if (tierStr == 'essentials') highlightTier = PremiumTier.essentials;
+          }
+          return PaywallScreen(highlightTier: highlightTier);
+        },
       },
     );
   }

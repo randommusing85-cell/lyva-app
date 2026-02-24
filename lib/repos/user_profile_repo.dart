@@ -42,6 +42,46 @@ class UserProfileRepo {
     await saveProfile(profile);
   }
 
+  /// Update premium subscription tier (called after RevenueCat purchase/restore)
+  Future<void> updatePremiumTier(String? tierName) async {
+    final profile = await getProfile();
+    if (profile == null) return;
+    profile.isPremium = tierName != null;
+    profile.premiumTier = tierName;
+    profile.updatedAt = DateTime.now();
+    await saveProfile(profile);
+  }
+
+  /// Increment AI coach message usage counter
+  Future<void> incrementCoachMessageUsage() async {
+    final profile = await getProfile();
+    if (profile == null) return;
+    profile.aiCoachMessagesUsed += 1;
+    profile.updatedAt = DateTime.now();
+    await saveProfile(profile);
+  }
+
+  /// Increment photo analysis usage counter
+  Future<void> incrementPhotoAnalysisUsage() async {
+    final profile = await getProfile();
+    if (profile == null) return;
+    profile.photoAnalysesUsed += 1;
+    profile.updatedAt = DateTime.now();
+    await saveProfile(profile);
+  }
+
+  /// Reset monthly usage counters (called on app open when new month detected)
+  Future<void> resetMonthlyUsage() async {
+    final profile = await getProfile();
+    if (profile == null) return;
+    final now = DateTime.now();
+    profile.aiCoachMessagesUsed = 0;
+    profile.photoAnalysesUsed = 0;
+    profile.usageResetDate = DateTime(now.year, now.month, 1);
+    profile.updatedAt = DateTime.now();
+    await saveProfile(profile);
+  }
+
   /// Delete the user profile (for testing/reset)
   Future<void> deleteProfile() async {
     final isar = await IsarDb.instance();

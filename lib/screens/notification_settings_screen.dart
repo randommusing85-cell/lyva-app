@@ -16,6 +16,8 @@ class _NotificationSettingsScreenState
     extends ConsumerState<NotificationSettingsScreen> {
   bool _notifyCheckIn = true;
   bool _notifyWorkout = true;
+  bool _notifyCycle = true;
+  bool _showCycleToggle = false;
   int _reminderHour = 9;
   int _reminderMinute = 0;
   bool _saving = false;
@@ -30,6 +32,8 @@ class _NotificationSettingsScreenState
         setState(() {
           _notifyCheckIn = profile.notifyCheckIn;
           _notifyWorkout = profile.notifyWorkout;
+          _notifyCycle = profile.notifyCycle;
+          _showCycleToggle = profile.sex == 'female' && profile.trackCycle;
           _reminderHour = profile.reminderHour;
           _reminderMinute = profile.reminderMinute;
           _initialized = true;
@@ -48,6 +52,7 @@ class _NotificationSettingsScreenState
       if (profile != null) {
         profile.notifyCheckIn = _notifyCheckIn;
         profile.notifyWorkout = _notifyWorkout;
+        profile.notifyCycle = _notifyCycle;
         profile.reminderHour = _reminderHour;
         profile.reminderMinute = _reminderMinute;
         profile.updatedAt = DateTime.now();
@@ -192,6 +197,14 @@ class _NotificationSettingsScreenState
             value: _notifyWorkout,
             onChanged: (v) => setState(() => _notifyWorkout = v),
           ),
+
+          if (_showCycleToggle)
+            SwitchListTile(
+              title: const Text('Cycle Check-in'),
+              subtitle: const Text('Daily tips based on your cycle phase'),
+              value: _notifyCycle,
+              onChanged: (v) => setState(() => _notifyCycle = v),
+            ),
 
           const Divider(),
 

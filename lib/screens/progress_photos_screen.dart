@@ -8,8 +8,10 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/progress_photo.dart';
+import '../services/premium_service.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/premium_gate.dart';
 
 class ProgressPhotosScreen extends ConsumerStatefulWidget {
   const ProgressPhotosScreen({super.key});
@@ -54,6 +56,7 @@ class _ProgressPhotosScreenState extends ConsumerState<ProgressPhotosScreen> {
 
       final repo = ref.read(primeRepoProvider);
       await repo.saveProgressPhoto(photo);
+      ref.read(analyticsProvider).logProgressPhotoTaken();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -107,31 +110,34 @@ class _ProgressPhotosScreenState extends ConsumerState<ProgressPhotosScreen> {
         title: const Text('Progress Photos'),
         backgroundColor: AppColors.background,
       ),
-      body: photosAsync.when(
-        data: (photos) {
-          if (photos.isEmpty) return _buildEmptyState();
+      body: PremiumGate(
+        feature: PremiumFeature.progressPhotos,
+        child: photosAsync.when(
+          data: (photos) {
+            if (photos.isEmpty) return _buildEmptyState();
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 3 / 4,
-            ),
-            itemCount: photos.length,
-            itemBuilder: (_, i) => _PhotoTile(
-              photo: photos[i],
-              onTap: () => Navigator.pushNamed(
-                context,
-                '/progress-photo-detail',
-                arguments: photos[i],
+            return GridView.builder(
+              padding: const EdgeInsets.all(12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 3 / 4,
               ),
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('Something went wrong')),
+              itemCount: photos.length,
+              itemBuilder: (_, i) => _PhotoTile(
+                photo: photos[i],
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/progress-photo-detail',
+                  arguments: photos[i],
+                ),
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, __) => const Center(child: Text('Something went wrong')),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _capturing ? null : _showSourcePicker,

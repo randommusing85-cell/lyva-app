@@ -172,12 +172,7 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
               const SizedBox(height: 12),
 
               // Premium: Advanced Analytics
-              PremiumFeatureCard(
-                feature: PremiumFeature.advancedAnalytics,
-                icon: Icons.analytics_outlined,
-                title: 'Advanced Analytics',
-                description: 'Body composition trends, performance tracking, and detailed insights',
-              ),
+              const _AdvancedAnalyticsTile(),
 
               const SizedBox(height: 32),
             ],
@@ -947,10 +942,12 @@ class _CyclePredictionSummary extends ConsumerWidget {
     final predictionAsync = ref.watch(latestCyclePredictionProvider);
 
     final profile = profileAsync.valueOrNull;
-    final hasAccess = accessAsync.valueOrNull?.hasAccess ?? false;
+    final canAccessCycle = accessAsync.valueOrNull
+            ?.canAccessFeature(PremiumFeature.cyclePredictions) ??
+        false;
 
-    // Only show if user tracks cycles and has premium access
-    if (profile == null || !profile.trackCycle || !hasAccess) {
+    // Only show if user tracks cycles and can access cycle predictions
+    if (profile == null || !profile.trackCycle || !canAccessCycle) {
       return const SizedBox.shrink();
     }
 
@@ -1065,6 +1062,82 @@ class _CyclePredictionSummary extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Advanced Analytics: navigable tile when premium, feature card otherwise
+class _AdvancedAnalyticsTile extends ConsumerWidget {
+  const _AdvancedAnalyticsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final accessAsync = ref.watch(premiumAccessProvider);
+    final canAccess = accessAsync.valueOrNull
+            ?.canAccessFeature(PremiumFeature.advancedAnalytics) ??
+        false;
+
+    if (canAccess) {
+      return GestureDetector(
+        onTap: () => Navigator.pushNamed(context, '/advanced-analytics'),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.analytics_outlined,
+                    color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Advanced Analytics',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Body composition, macros, workout trends',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return PremiumFeatureCard(
+      feature: PremiumFeature.advancedAnalytics,
+      icon: Icons.analytics_outlined,
+      title: 'Advanced Analytics',
+      description: 'Body composition trends, performance tracking, and detailed insights',
     );
   }
 }

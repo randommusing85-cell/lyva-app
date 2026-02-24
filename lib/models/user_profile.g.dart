@@ -22,173 +22,198 @@ const UserProfileSchema = CollectionSchema(
       name: r'age',
       type: IsarType.long,
     ),
-    r'checkDiastasis': PropertySchema(
+    r'aiCoachMessagesUsed': PropertySchema(
       id: 1,
+      name: r'aiCoachMessagesUsed',
+      type: IsarType.long,
+    ),
+    r'checkDiastasis': PropertySchema(
+      id: 2,
       name: r'checkDiastasis',
       type: IsarType.bool,
     ),
     r'createdAt': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
     r'cycleLength': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'cycleLength',
       type: IsarType.long,
     ),
     r'deliveryDate': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'deliveryDate',
       type: IsarType.dateTime,
     ),
     r'deliveryType': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'deliveryType',
       type: IsarType.string,
     ),
     r'equipment': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'equipment',
       type: IsarType.string,
     ),
     r'goal': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'goal',
       type: IsarType.string,
     ),
     r'hasInjuries': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'hasInjuries',
       type: IsarType.bool,
     ),
     r'heightCm': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'heightCm',
       type: IsarType.long,
     ),
     r'injuries': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'injuries',
       type: IsarType.string,
     ),
     r'injuryDisplayText': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'injuryDisplayText',
       type: IsarType.string,
     ),
     r'injuryList': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'injuryList',
       type: IsarType.stringList,
     ),
     r'injuryNotes': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'injuryNotes',
       type: IsarType.string,
     ),
     r'isPremium': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'isPremium',
       type: IsarType.bool,
     ),
     r'lastLoginAt': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'lastLoginAt',
       type: IsarType.dateTime,
     ),
     r'lastPeriodDate': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'lastPeriodDate',
       type: IsarType.dateTime,
     ),
     r'level': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'level',
       type: IsarType.string,
     ),
     r'medicalClearance': PropertySchema(
-      id: 18,
+      id: 19,
       name: r'medicalClearance',
       type: IsarType.bool,
     ),
     r'name': PropertySchema(
-      id: 19,
+      id: 20,
       name: r'name',
       type: IsarType.string,
     ),
     r'notifyCheckIn': PropertySchema(
-      id: 20,
+      id: 21,
       name: r'notifyCheckIn',
       type: IsarType.bool,
     ),
+    r'notifyCycle': PropertySchema(
+      id: 22,
+      name: r'notifyCycle',
+      type: IsarType.bool,
+    ),
     r'notifyWorkout': PropertySchema(
-      id: 21,
+      id: 23,
       name: r'notifyWorkout',
       type: IsarType.bool,
     ),
     r'periodDuration': PropertySchema(
-      id: 22,
+      id: 24,
       name: r'periodDuration',
       type: IsarType.long,
     ),
+    r'photoAnalysesUsed': PropertySchema(
+      id: 25,
+      name: r'photoAnalysesUsed',
+      type: IsarType.long,
+    ),
     r'postPartumStatus': PropertySchema(
-      id: 23,
+      id: 26,
       name: r'postPartumStatus',
       type: IsarType.string,
     ),
+    r'premiumTier': PropertySchema(
+      id: 27,
+      name: r'premiumTier',
+      type: IsarType.string,
+    ),
     r'premiumTrialStart': PropertySchema(
-      id: 24,
+      id: 28,
       name: r'premiumTrialStart',
       type: IsarType.dateTime,
     ),
     r'reminderHour': PropertySchema(
-      id: 25,
+      id: 29,
       name: r'reminderHour',
       type: IsarType.long,
     ),
     r'reminderMinute': PropertySchema(
-      id: 26,
+      id: 30,
       name: r'reminderMinute',
       type: IsarType.long,
     ),
     r'scheduleDisplayText': PropertySchema(
-      id: 27,
+      id: 31,
       name: r'scheduleDisplayText',
       type: IsarType.string,
     ),
     r'scheduledDays': PropertySchema(
-      id: 28,
+      id: 32,
       name: r'scheduledDays',
       type: IsarType.string,
     ),
     r'scheduledDaysList': PropertySchema(
-      id: 29,
+      id: 33,
       name: r'scheduledDaysList',
       type: IsarType.longList,
     ),
     r'sex': PropertySchema(
-      id: 30,
+      id: 34,
       name: r'sex',
       type: IsarType.string,
     ),
     r'trackCycle': PropertySchema(
-      id: 31,
+      id: 35,
       name: r'trackCycle',
       type: IsarType.bool,
     ),
     r'trainingDaysPerWeek': PropertySchema(
-      id: 32,
+      id: 36,
       name: r'trainingDaysPerWeek',
       type: IsarType.long,
     ),
     r'updatedAt': PropertySchema(
-      id: 33,
+      id: 37,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
+    r'usageResetDate': PropertySchema(
+      id: 38,
+      name: r'usageResetDate',
+      type: IsarType.dateTime,
+    ),
     r'weightKg': PropertySchema(
-      id: 34,
+      id: 39,
       name: r'weightKg',
       type: IsarType.double,
     )
@@ -234,6 +259,12 @@ int _userProfileEstimateSize(
   bytesCount += 3 + object.level.length * 3;
   bytesCount += 3 + object.name.length * 3;
   bytesCount += 3 + object.postPartumStatus.length * 3;
+  {
+    final value = object.premiumTier;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.scheduleDisplayText.length * 3;
   bytesCount += 3 + object.scheduledDays.length * 3;
   bytesCount += 3 + object.scheduledDaysList.length * 8;
@@ -248,40 +279,45 @@ void _userProfileSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeLong(offsets[0], object.age);
-  writer.writeBool(offsets[1], object.checkDiastasis);
-  writer.writeDateTime(offsets[2], object.createdAt);
-  writer.writeLong(offsets[3], object.cycleLength);
-  writer.writeDateTime(offsets[4], object.deliveryDate);
-  writer.writeString(offsets[5], object.deliveryType);
-  writer.writeString(offsets[6], object.equipment);
-  writer.writeString(offsets[7], object.goal);
-  writer.writeBool(offsets[8], object.hasInjuries);
-  writer.writeLong(offsets[9], object.heightCm);
-  writer.writeString(offsets[10], object.injuries);
-  writer.writeString(offsets[11], object.injuryDisplayText);
-  writer.writeStringList(offsets[12], object.injuryList);
-  writer.writeString(offsets[13], object.injuryNotes);
-  writer.writeBool(offsets[14], object.isPremium);
-  writer.writeDateTime(offsets[15], object.lastLoginAt);
-  writer.writeDateTime(offsets[16], object.lastPeriodDate);
-  writer.writeString(offsets[17], object.level);
-  writer.writeBool(offsets[18], object.medicalClearance);
-  writer.writeString(offsets[19], object.name);
-  writer.writeBool(offsets[20], object.notifyCheckIn);
-  writer.writeBool(offsets[21], object.notifyWorkout);
-  writer.writeLong(offsets[22], object.periodDuration);
-  writer.writeString(offsets[23], object.postPartumStatus);
-  writer.writeDateTime(offsets[24], object.premiumTrialStart);
-  writer.writeLong(offsets[25], object.reminderHour);
-  writer.writeLong(offsets[26], object.reminderMinute);
-  writer.writeString(offsets[27], object.scheduleDisplayText);
-  writer.writeString(offsets[28], object.scheduledDays);
-  writer.writeLongList(offsets[29], object.scheduledDaysList);
-  writer.writeString(offsets[30], object.sex);
-  writer.writeBool(offsets[31], object.trackCycle);
-  writer.writeLong(offsets[32], object.trainingDaysPerWeek);
-  writer.writeDateTime(offsets[33], object.updatedAt);
-  writer.writeDouble(offsets[34], object.weightKg);
+  writer.writeLong(offsets[1], object.aiCoachMessagesUsed);
+  writer.writeBool(offsets[2], object.checkDiastasis);
+  writer.writeDateTime(offsets[3], object.createdAt);
+  writer.writeLong(offsets[4], object.cycleLength);
+  writer.writeDateTime(offsets[5], object.deliveryDate);
+  writer.writeString(offsets[6], object.deliveryType);
+  writer.writeString(offsets[7], object.equipment);
+  writer.writeString(offsets[8], object.goal);
+  writer.writeBool(offsets[9], object.hasInjuries);
+  writer.writeLong(offsets[10], object.heightCm);
+  writer.writeString(offsets[11], object.injuries);
+  writer.writeString(offsets[12], object.injuryDisplayText);
+  writer.writeStringList(offsets[13], object.injuryList);
+  writer.writeString(offsets[14], object.injuryNotes);
+  writer.writeBool(offsets[15], object.isPremium);
+  writer.writeDateTime(offsets[16], object.lastLoginAt);
+  writer.writeDateTime(offsets[17], object.lastPeriodDate);
+  writer.writeString(offsets[18], object.level);
+  writer.writeBool(offsets[19], object.medicalClearance);
+  writer.writeString(offsets[20], object.name);
+  writer.writeBool(offsets[21], object.notifyCheckIn);
+  writer.writeBool(offsets[22], object.notifyCycle);
+  writer.writeBool(offsets[23], object.notifyWorkout);
+  writer.writeLong(offsets[24], object.periodDuration);
+  writer.writeLong(offsets[25], object.photoAnalysesUsed);
+  writer.writeString(offsets[26], object.postPartumStatus);
+  writer.writeString(offsets[27], object.premiumTier);
+  writer.writeDateTime(offsets[28], object.premiumTrialStart);
+  writer.writeLong(offsets[29], object.reminderHour);
+  writer.writeLong(offsets[30], object.reminderMinute);
+  writer.writeString(offsets[31], object.scheduleDisplayText);
+  writer.writeString(offsets[32], object.scheduledDays);
+  writer.writeLongList(offsets[33], object.scheduledDaysList);
+  writer.writeString(offsets[34], object.sex);
+  writer.writeBool(offsets[35], object.trackCycle);
+  writer.writeLong(offsets[36], object.trainingDaysPerWeek);
+  writer.writeDateTime(offsets[37], object.updatedAt);
+  writer.writeDateTime(offsets[38], object.usageResetDate);
+  writer.writeDouble(offsets[39], object.weightKg);
 }
 
 UserProfile _userProfileDeserialize(
@@ -292,38 +328,43 @@ UserProfile _userProfileDeserialize(
 ) {
   final object = UserProfile();
   object.age = reader.readLong(offsets[0]);
-  object.checkDiastasis = reader.readBool(offsets[1]);
-  object.createdAt = reader.readDateTime(offsets[2]);
-  object.cycleLength = reader.readLong(offsets[3]);
-  object.deliveryDate = reader.readDateTimeOrNull(offsets[4]);
-  object.deliveryType = reader.readString(offsets[5]);
-  object.equipment = reader.readString(offsets[6]);
-  object.goal = reader.readString(offsets[7]);
-  object.heightCm = reader.readLong(offsets[9]);
+  object.aiCoachMessagesUsed = reader.readLong(offsets[1]);
+  object.checkDiastasis = reader.readBool(offsets[2]);
+  object.createdAt = reader.readDateTime(offsets[3]);
+  object.cycleLength = reader.readLong(offsets[4]);
+  object.deliveryDate = reader.readDateTimeOrNull(offsets[5]);
+  object.deliveryType = reader.readString(offsets[6]);
+  object.equipment = reader.readString(offsets[7]);
+  object.goal = reader.readString(offsets[8]);
+  object.heightCm = reader.readLong(offsets[10]);
   object.id = id;
-  object.injuries = reader.readString(offsets[10]);
-  object.injuryList = reader.readStringList(offsets[12]) ?? [];
-  object.injuryNotes = reader.readStringOrNull(offsets[13]);
-  object.isPremium = reader.readBool(offsets[14]);
-  object.lastLoginAt = reader.readDateTimeOrNull(offsets[15]);
-  object.lastPeriodDate = reader.readDateTimeOrNull(offsets[16]);
-  object.level = reader.readString(offsets[17]);
-  object.medicalClearance = reader.readBool(offsets[18]);
-  object.name = reader.readString(offsets[19]);
-  object.notifyCheckIn = reader.readBool(offsets[20]);
-  object.notifyWorkout = reader.readBool(offsets[21]);
-  object.periodDuration = reader.readLong(offsets[22]);
-  object.postPartumStatus = reader.readString(offsets[23]);
-  object.premiumTrialStart = reader.readDateTimeOrNull(offsets[24]);
-  object.reminderHour = reader.readLong(offsets[25]);
-  object.reminderMinute = reader.readLong(offsets[26]);
-  object.scheduledDays = reader.readString(offsets[28]);
-  object.scheduledDaysList = reader.readLongList(offsets[29]) ?? [];
-  object.sex = reader.readString(offsets[30]);
-  object.trackCycle = reader.readBool(offsets[31]);
-  object.trainingDaysPerWeek = reader.readLong(offsets[32]);
-  object.updatedAt = reader.readDateTime(offsets[33]);
-  object.weightKg = reader.readDouble(offsets[34]);
+  object.injuries = reader.readString(offsets[11]);
+  object.injuryList = reader.readStringList(offsets[13]) ?? [];
+  object.injuryNotes = reader.readStringOrNull(offsets[14]);
+  object.isPremium = reader.readBool(offsets[15]);
+  object.lastLoginAt = reader.readDateTimeOrNull(offsets[16]);
+  object.lastPeriodDate = reader.readDateTimeOrNull(offsets[17]);
+  object.level = reader.readString(offsets[18]);
+  object.medicalClearance = reader.readBool(offsets[19]);
+  object.name = reader.readString(offsets[20]);
+  object.notifyCheckIn = reader.readBool(offsets[21]);
+  object.notifyCycle = reader.readBool(offsets[22]);
+  object.notifyWorkout = reader.readBool(offsets[23]);
+  object.periodDuration = reader.readLong(offsets[24]);
+  object.photoAnalysesUsed = reader.readLong(offsets[25]);
+  object.postPartumStatus = reader.readString(offsets[26]);
+  object.premiumTier = reader.readStringOrNull(offsets[27]);
+  object.premiumTrialStart = reader.readDateTimeOrNull(offsets[28]);
+  object.reminderHour = reader.readLong(offsets[29]);
+  object.reminderMinute = reader.readLong(offsets[30]);
+  object.scheduledDays = reader.readString(offsets[32]);
+  object.scheduledDaysList = reader.readLongList(offsets[33]) ?? [];
+  object.sex = reader.readString(offsets[34]);
+  object.trackCycle = reader.readBool(offsets[35]);
+  object.trainingDaysPerWeek = reader.readLong(offsets[36]);
+  object.updatedAt = reader.readDateTime(offsets[37]);
+  object.usageResetDate = reader.readDateTimeOrNull(offsets[38]);
+  object.weightKg = reader.readDouble(offsets[39]);
   return object;
 }
 
@@ -337,72 +378,82 @@ P _userProfileDeserializeProp<P>(
     case 0:
       return (reader.readLong(offset)) as P;
     case 1:
-      return (reader.readBool(offset)) as P;
-    case 2:
-      return (reader.readDateTime(offset)) as P;
-    case 3:
       return (reader.readLong(offset)) as P;
+    case 2:
+      return (reader.readBool(offset)) as P;
+    case 3:
+      return (reader.readDateTime(offset)) as P;
     case 4:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 5:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 6:
       return (reader.readString(offset)) as P;
     case 7:
       return (reader.readString(offset)) as P;
     case 8:
-      return (reader.readBool(offset)) as P;
-    case 9:
-      return (reader.readLong(offset)) as P;
-    case 10:
       return (reader.readString(offset)) as P;
+    case 9:
+      return (reader.readBool(offset)) as P;
+    case 10:
+      return (reader.readLong(offset)) as P;
     case 11:
       return (reader.readString(offset)) as P;
     case 12:
-      return (reader.readStringList(offset) ?? []) as P;
+      return (reader.readString(offset)) as P;
     case 13:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 14:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 15:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 16:
       return (reader.readDateTimeOrNull(offset)) as P;
     case 17:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 18:
-      return (reader.readBool(offset)) as P;
-    case 19:
       return (reader.readString(offset)) as P;
-    case 20:
+    case 19:
       return (reader.readBool(offset)) as P;
+    case 20:
+      return (reader.readString(offset)) as P;
     case 21:
       return (reader.readBool(offset)) as P;
     case 22:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 23:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 24:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 25:
       return (reader.readLong(offset)) as P;
     case 26:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 27:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 28:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 29:
-      return (reader.readLongList(offset) ?? []) as P;
-    case 30:
-      return (reader.readString(offset)) as P;
-    case 31:
-      return (reader.readBool(offset)) as P;
-    case 32:
       return (reader.readLong(offset)) as P;
+    case 30:
+      return (reader.readLong(offset)) as P;
+    case 31:
+      return (reader.readString(offset)) as P;
+    case 32:
+      return (reader.readString(offset)) as P;
     case 33:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLongList(offset) ?? []) as P;
     case 34:
+      return (reader.readString(offset)) as P;
+    case 35:
+      return (reader.readBool(offset)) as P;
+    case 36:
+      return (reader.readLong(offset)) as P;
+    case 37:
+      return (reader.readDateTime(offset)) as P;
+    case 38:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 39:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -547,6 +598,62 @@ extension UserProfileQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'age',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiCoachMessagesUsedEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'aiCoachMessagesUsed',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiCoachMessagesUsedGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'aiCoachMessagesUsed',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiCoachMessagesUsedLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'aiCoachMessagesUsed',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiCoachMessagesUsedBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'aiCoachMessagesUsed',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -2364,6 +2471,16 @@ extension UserProfileQueryFilter
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      notifyCycleEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'notifyCycle',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
       notifyWorkoutEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -2421,6 +2538,62 @@ extension UserProfileQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'periodDuration',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      photoAnalysesUsedEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'photoAnalysesUsed',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      photoAnalysesUsedGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'photoAnalysesUsed',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      photoAnalysesUsedLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'photoAnalysesUsed',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      photoAnalysesUsedBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'photoAnalysesUsed',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -2560,6 +2733,160 @@ extension UserProfileQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'postPartumStatus',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'premiumTier',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'premiumTier',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'premiumTier',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'premiumTier',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'premiumTier',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'premiumTier',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'premiumTier',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'premiumTier',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'premiumTier',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'premiumTier',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'premiumTier',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      premiumTierIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'premiumTier',
         value: '',
       ));
     });
@@ -3421,6 +3748,80 @@ extension UserProfileQueryFilter
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      usageResetDateIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'usageResetDate',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      usageResetDateIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'usageResetDate',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      usageResetDateEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'usageResetDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      usageResetDateGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'usageResetDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      usageResetDateLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'usageResetDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      usageResetDateBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'usageResetDate',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition> weightKgEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -3503,6 +3904,20 @@ extension UserProfileQuerySortBy
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByAgeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'age', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByAiCoachMessagesUsed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCoachMessagesUsed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByAiCoachMessagesUsedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCoachMessagesUsed', Sort.desc);
     });
   }
 
@@ -3743,6 +4158,18 @@ extension UserProfileQuerySortBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByNotifyCycle() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifyCycle', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByNotifyCycleDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifyCycle', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByNotifyWorkout() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notifyWorkout', Sort.asc);
@@ -3770,6 +4197,20 @@ extension UserProfileQuerySortBy
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByPhotoAnalysesUsed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'photoAnalysesUsed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByPhotoAnalysesUsedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'photoAnalysesUsed', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
       sortByPostPartumStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'postPartumStatus', Sort.asc);
@@ -3780,6 +4221,18 @@ extension UserProfileQuerySortBy
       sortByPostPartumStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'postPartumStatus', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByPremiumTier() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTier', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByPremiumTierDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTier', Sort.desc);
     });
   }
 
@@ -3900,6 +4353,19 @@ extension UserProfileQuerySortBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByUsageResetDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'usageResetDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByUsageResetDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'usageResetDate', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByWeightKg() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'weightKg', Sort.asc);
@@ -3924,6 +4390,20 @@ extension UserProfileQuerySortThenBy
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByAgeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'age', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByAiCoachMessagesUsed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCoachMessagesUsed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByAiCoachMessagesUsedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCoachMessagesUsed', Sort.desc);
     });
   }
 
@@ -4176,6 +4656,18 @@ extension UserProfileQuerySortThenBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByNotifyCycle() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifyCycle', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByNotifyCycleDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifyCycle', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByNotifyWorkout() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notifyWorkout', Sort.asc);
@@ -4203,6 +4695,20 @@ extension UserProfileQuerySortThenBy
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByPhotoAnalysesUsed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'photoAnalysesUsed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByPhotoAnalysesUsedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'photoAnalysesUsed', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
       thenByPostPartumStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'postPartumStatus', Sort.asc);
@@ -4213,6 +4719,18 @@ extension UserProfileQuerySortThenBy
       thenByPostPartumStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'postPartumStatus', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByPremiumTier() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTier', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByPremiumTierDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'premiumTier', Sort.desc);
     });
   }
 
@@ -4333,6 +4851,19 @@ extension UserProfileQuerySortThenBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByUsageResetDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'usageResetDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByUsageResetDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'usageResetDate', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByWeightKg() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'weightKg', Sort.asc);
@@ -4351,6 +4882,13 @@ extension UserProfileQueryWhereDistinct
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByAge() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'age');
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByAiCoachMessagesUsed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'aiCoachMessagesUsed');
     });
   }
 
@@ -4484,6 +5022,12 @@ extension UserProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByNotifyCycle() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'notifyCycle');
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByNotifyWorkout() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'notifyWorkout');
@@ -4496,11 +5040,25 @@ extension UserProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByPhotoAnalysesUsed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'photoAnalysesUsed');
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByPostPartumStatus(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'postPartumStatus',
           caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByPremiumTier(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'premiumTier', caseSensitive: caseSensitive);
     });
   }
 
@@ -4572,6 +5130,12 @@ extension UserProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByUsageResetDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'usageResetDate');
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByWeightKg() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'weightKg');
@@ -4590,6 +5154,13 @@ extension UserProfileQueryProperty
   QueryBuilder<UserProfile, int, QQueryOperations> ageProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'age');
+    });
+  }
+
+  QueryBuilder<UserProfile, int, QQueryOperations>
+      aiCoachMessagesUsedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'aiCoachMessagesUsed');
     });
   }
 
@@ -4717,6 +5288,12 @@ extension UserProfileQueryProperty
     });
   }
 
+  QueryBuilder<UserProfile, bool, QQueryOperations> notifyCycleProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'notifyCycle');
+    });
+  }
+
   QueryBuilder<UserProfile, bool, QQueryOperations> notifyWorkoutProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'notifyWorkout');
@@ -4729,10 +5306,22 @@ extension UserProfileQueryProperty
     });
   }
 
+  QueryBuilder<UserProfile, int, QQueryOperations> photoAnalysesUsedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'photoAnalysesUsed');
+    });
+  }
+
   QueryBuilder<UserProfile, String, QQueryOperations>
       postPartumStatusProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'postPartumStatus');
+    });
+  }
+
+  QueryBuilder<UserProfile, String?, QQueryOperations> premiumTierProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'premiumTier');
     });
   }
 
@@ -4797,6 +5386,13 @@ extension UserProfileQueryProperty
   QueryBuilder<UserProfile, DateTime, QQueryOperations> updatedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'updatedAt');
+    });
+  }
+
+  QueryBuilder<UserProfile, DateTime?, QQueryOperations>
+      usageResetDateProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'usageResetDate');
     });
   }
 
