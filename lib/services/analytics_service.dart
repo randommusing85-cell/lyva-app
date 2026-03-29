@@ -675,4 +675,46 @@ class AnalyticsService {
   Future<void> logPaywallDismissed() async {
     await _analytics.logEvent(name: 'paywall_dismissed');
   }
+
+  // ===== PLATEAU & REFEED EVENTS =====
+
+  Future<void> logPlateauDetected({
+    required double weightChangeKg,
+    required int daysInDeficit,
+  }) async {
+    await _analytics.logEvent(
+      name: 'plateau_detected',
+      parameters: {
+        'weight_change_kg': weightChangeKg,
+        'days_in_deficit': daysInDeficit,
+      },
+    );
+  }
+
+  Future<void> logRefeedStarted({
+    required int maintenanceCalories,
+    required int previousCalories,
+  }) async {
+    await _analytics.logEvent(
+      name: 'refeed_started',
+      parameters: {
+        'maintenance_calories': maintenanceCalories,
+        'previous_calories': previousCalories,
+      },
+    );
+  }
+
+  Future<void> logRefeedCompleted({required int refeedDurationDays}) async {
+    await _analytics.logEvent(
+      name: 'refeed_completed',
+      parameters: {'duration_days': refeedDurationDays},
+    );
+  }
+
+  Future<void> logDeficitResumed({required int resumedCalories}) async {
+    await _analytics.logEvent(
+      name: 'deficit_resumed',
+      parameters: {'resumed_calories': resumedCalories},
+    );
+  }
 }

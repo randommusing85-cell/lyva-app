@@ -56,6 +56,15 @@ class PrimeRepo {
         .findAll();
   }
 
+  /// Get check-ins for the last N days (most recent first).
+  /// Used by plateau detection to analyze 21-day weight trends.
+  Future<List<CheckIn>> getCheckInsForLastDays(int days) async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: days));
+    return getCheckInsInDateRange(start, now);
+  }
+
   /* =========================
    * MEAL LOGS
    * ========================= */

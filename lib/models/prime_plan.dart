@@ -18,4 +18,16 @@ class PrimePlan {
   late int fatG;
 
   late int stepTarget;
+
+  // ===== DIET PHASE TRACKING =====
+
+  /// Diet phase: 'deficit', 'refeed', 'resumed_deficit'
+  /// Defaults to 'deficit' for backward compatibility with existing plans
+  String phase = 'deficit';
+
+  /// When this phase started (for tracking duration)
+  DateTime? phaseStartedAt;
+
+  /// Calories at deficit before entering refeed (to restore after refeed ends)
+  int? preRefeedCalories;
 }

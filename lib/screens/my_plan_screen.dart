@@ -5,9 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/checkin.dart';
 import '../models/prime_plan.dart';
 import '../state/providers.dart';
+import '../theme/app_theme.dart';
+import '../utils/plateau_detector.dart';
 import '../widgets/ai_coach_card.dart';
 import 'nutrition_lock_explanation_screen.dart';
-import '../services/analytics_service.dart';
 
 class MyPlanScreen extends ConsumerStatefulWidget {
   const MyPlanScreen({super.key});
@@ -77,6 +78,146 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
     }
   }
 
+  // ===== REFEED PHASE TRANSITION METHODS =====
+
+  Future<void> _startRefeed(PrimePlan currentPlan) async {
+    final profile = await ref.read(userProfileProvider.future);
+    if (profile == null) return;
+
+    final maintenanceCals = PlateauDetector.calculateMaintenanceCalories(
+      profile: profile,
+      trainingDaysPerWeek: currentPlan.trainingDays,
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Icon(Icons.restaurant, size: 40, color: AppColors.primary),
+        title: const Text('Start Refeed Break?'),
+        content: Text(
+          'Your weight has plateaued. A 2-week maintenance break will help '
+          'reset your metabolism.\n\n'
+          'Your calories will increase from ${currentPlan.calories} to '
+          '$maintenanceCals kcal/day (maintenance level).\n\n'
+          'After 14 days, you\'ll return to your deficit.',
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Start Refeed'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Calculate maintenance macros (keep protein stable, increase carbs)
+    final calorieDiff = maintenanceCals - currentPlan.calories;
+    final extraCarbs = (calorieDiff / 4).round(); // Push extra into carbs
+
+    final refeedPlan = PrimePlan()
+      ..createdAt = DateTime.now()
+      ..planName = '${currentPlan.planName} (Refeed)'
+      ..trainingDays = currentPlan.trainingDays
+      ..calories = maintenanceCals
+      ..proteinG = currentPlan.proteinG
+      ..carbsG = (currentPlan.carbsG + extraCarbs).clamp(0, 9999)
+      ..fatG = currentPlan.fatG
+      ..stepTarget = currentPlan.stepTarget
+      ..phase = 'refeed'
+      ..phaseStartedAt = DateTime.now()
+      ..preRefeedCalories = currentPlan.calories;
+
+    final repo = ref.read(primeRepoProvider);
+    await repo.upsertPlan(refeedPlan);
+
+    ref.read(analyticsProvider).logRefeedStarted(
+      maintenanceCalories: maintenanceCals,
+      previousCalories: currentPlan.calories,
+    );
+
+    ref.invalidate(activePlanProvider);
+    ref.invalidate(plateauStatusProvider);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Refeed break started! Enjoy the extra fuel.')),
+      );
+    }
+  }
+
+  Future<void> _resumeDeficit(PrimePlan currentPlan) async {
+    final deficitCalories = currentPlan.preRefeedCalories ?? currentPlan.calories;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Icon(Icons.trending_down, size: 40, color: AppColors.primary),
+        title: const Text('Resume Deficit?'),
+        content: Text(
+          'Your refeed break is complete! Ready to get back to your cut?\n\n'
+          'Calories will return to $deficitCalories kcal/day.',
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not yet'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Resume Deficit'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Recalculate macro split for deficit calories
+    final calorieDiff = deficitCalories - currentPlan.calories;
+    final carbAdjust = (calorieDiff / 4).round();
+
+    final resumedPlan = PrimePlan()
+      ..createdAt = DateTime.now()
+      ..planName = currentPlan.planName.replaceAll(' (Refeed)', '')
+      ..trainingDays = currentPlan.trainingDays
+      ..calories = deficitCalories
+      ..proteinG = currentPlan.proteinG
+      ..carbsG = (currentPlan.carbsG + carbAdjust).clamp(0, 9999)
+      ..fatG = currentPlan.fatG
+      ..stepTarget = currentPlan.stepTarget
+      ..phase = 'resumed_deficit'
+      ..phaseStartedAt = DateTime.now();
+
+    final repo = ref.read(primeRepoProvider);
+    await repo.upsertPlan(resumedPlan);
+
+    ref.read(analyticsProvider).logRefeedCompleted(
+      refeedDurationDays: PlateauDetector.refeedDurationDays,
+    );
+    ref.read(analyticsProvider).logDeficitResumed(
+      resumedCalories: deficitCalories,
+    );
+
+    ref.invalidate(activePlanProvider);
+    ref.invalidate(plateauStatusProvider);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Deficit resumed. Let\'s keep pushing!')),
+      );
+    }
+  }
+
   Future<void> _askCoach({
     required PrimePlan plan,
     required List<CheckIn> checkIns,
@@ -95,6 +236,8 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
     });
 
     try {
+      final profile = await ref.read(userProfileProvider.future);
+
       final callable = FirebaseFunctions.instance.httpsCallable(
         'generateAdjustment',
       );
@@ -110,7 +253,12 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
             "fat_g": plan.fatG,
           },
           "training_days": plan.trainingDays,
-          "goal": "cut",
+          "goal": profile?.goal ?? "cut",
+          "phase": plan.phase,
+          "phase_days": plan.phaseStartedAt != null
+              ? DateTime.now().difference(plan.phaseStartedAt!).inDays
+              : null,
+          "pre_refeed_calories": plan.preRefeedCalories,
         },
         "trends": buildTrendPayload(checkIns),
       });
@@ -221,6 +369,171 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
     });
   }
 
+  Widget _buildPhaseBanner(PrimePlan plan, AsyncValue<PlateauStatus?> plateauAsync) {
+    return plateauAsync.when(
+      data: (status) {
+        // Refeed in progress
+        if (plan.phase == 'refeed') {
+          final remaining = status?.daysRemainingInRefeed ?? 0;
+          final elapsed = PlateauDetector.refeedDurationDays - remaining;
+          final isComplete = remaining <= 0;
+
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.restaurant, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isComplete
+                            ? 'Refeed Break Complete!'
+                            : 'Refeed Break — Day $elapsed of ${PlateauDetector.refeedDurationDays}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (!isComplete) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (elapsed / PlateauDetector.refeedDurationDays).clamp(0.0, 1.0),
+                      minHeight: 6,
+                      backgroundColor: AppColors.primary.withOpacity(0.2),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '$remaining days remaining. Eating at maintenance to reset metabolism.',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ] else ...[
+                  Text(
+                    'Your metabolism has had time to recover. Ready to resume your deficit?',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _resumeDeficit(plan),
+                      icon: const Icon(Icons.trending_down, size: 18),
+                      label: const Text('Resume Deficit'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }
+
+        // Plateau detected — show alert
+        if (status != null && status.isPlateaued) {
+          // Log plateau detection (fire-and-forget)
+          ref.read(analyticsProvider).logPlateauDetected(
+            weightChangeKg: status.weightChangeKg,
+            daysInDeficit: status.daysInCurrentPhase,
+          );
+
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.warning.withOpacity(0.4)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.trending_flat, size: 20, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Weight Plateau Detected',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  status.summary,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => _startRefeed(plan),
+                    icon: const Icon(Icons.restaurant, size: 18),
+                    label: const Text('Start Refeed Break'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.seasonAccent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Resumed deficit — subtle confirmation
+        if (plan.phase == 'resumed_deficit' && status != null) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_outline, size: 18, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Deficit resumed — ${status.daysInCurrentPhase} days since refeed',
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Normal deficit — no banner
+        return const SizedBox.shrink();
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final planAsync = ref.watch(activePlanProvider);
@@ -255,6 +568,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
             }
 
             final checkIns = checkInsAsync.value ?? <CheckIn>[];
+            final plateauAsync = ref.watch(plateauStatusProvider);
 
             final canCoach = _canAskCoach(plan);
             final daysLeft = _daysUntilCoach(plan);
@@ -271,7 +585,12 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
                   'Saved on: ${plan.createdAt}',
                   style: theme.textTheme.bodySmall,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+
+                // ===== DIET PHASE BANNER =====
+                _buildPhaseBanner(plan, plateauAsync),
+
+                const SizedBox(height: 12),
 
                 Text(plan.planName, style: theme.textTheme.titleLarge),
                 const SizedBox(height: 8),

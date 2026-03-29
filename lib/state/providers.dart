@@ -21,6 +21,7 @@ import '../services/step_tracking_service.dart';
 import '../services/premium_service.dart';
 import '../services/export_service.dart';
 import '../models/food_item.dart';
+import '../utils/plateau_detector.dart';
 
 // ============================================================================
 // REPOSITORY PROVIDERS
@@ -419,4 +420,39 @@ final customTemplatesProvider =
 final exportServiceProvider = Provider<ExportService>((ref) {
   final repo = ref.watch(primeRepoProvider);
   return ExportService(repo);
+});
+
+// ============================================================================
+// PLATEAU DETECTION & REFEED SYSTEM
+// ============================================================================
+
+/// Plateau status derived from check-ins + current plan.
+/// Only activates for users with goal == 'cut'.
+final plateauStatusProvider = FutureProvider.autoDispose<PlateauStatus?>((ref) async {
+  final plan = await ref.watch(activePlanProvider.future);
+  if (plan == null) return null;
+
+  final profile = await ref.watch(userProfileProvider.future);
+  if (profile == null || profile.goal != 'cut') return null;
+
+  final repo = ref.watch(primeRepoProvider);
+  final checkIns = await repo.getCheckInsForLastDays(21);
+
+  return PlateauDetector.analyze(
+    checkIns: checkIns,
+    currentPlan: plan,
+  );
+});
+
+/// Current diet phase from active plan (reactive shortcut)
+final currentDietPhaseProvider = FutureProvider.autoDispose<String>((ref) async {
+  final plan = await ref.watch(activePlanProvider.future);
+  return plan?.phase ?? 'deficit';
+});
+
+/// Days remaining in refeed phase (null if not in refeed)
+final refeedDaysRemainingProvider = FutureProvider.autoDispose<int?>((ref) async {
+  final plan = await ref.watch(activePlanProvider.future);
+  if (plan == null || plan.phase != 'refeed') return null;
+  return PlateauDetector.daysRemainingInRefeed(plan);
 });

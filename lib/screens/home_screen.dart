@@ -13,6 +13,7 @@ import '../state/providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/circular_progress_ring.dart';
 import '../widgets/cycle_phase_card.dart';
+import '../widgets/diet_phase_card.dart';
 import '../widgets/postpartum_status_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -230,6 +231,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   // Cycle Phase (moved here - shows if tracking cycles)
                   const CyclePhaseCard(),
+
+                  const SizedBox(height: 12),
+
+                  // Diet Phase (shows for cutting users: plateau alerts, refeed status)
+                  const DietPhaseCard(),
 
                   const SizedBox(height: 16),
 
