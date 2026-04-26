@@ -8,7 +8,7 @@
 PRODUCT_NAME = Lyva
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.primeformAppFixed
+PRODUCT_BUNDLE_IDENTIFIER = ai.kineticiq.lyva
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 KineticIQ. All rights reserved.

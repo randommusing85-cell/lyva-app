@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.primeform_app_fixed"
+    namespace = "ai.kineticiq.lyva"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -47,7 +47,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.primeform_app_fixed"
+        applicationId = "ai.kineticiq.lyva"
         minSdk = 26
         targetSdk = 34
         versionCode = flutter.versionCode

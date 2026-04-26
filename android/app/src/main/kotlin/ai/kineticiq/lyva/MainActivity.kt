@@ -1,4 +1,4 @@
-package com.example.primeform_app_fixed
+package ai.kineticiq.lyva
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
