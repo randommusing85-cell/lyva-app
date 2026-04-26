@@ -51,29 +51,29 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBkdILt8ih6IQrqeQ-RbdYRqNN2MgFEOlo',
-    appId: '1:682188599088:android:de2c7cba5dfed4cedde2f5',
-    messagingSenderId: '682188599088',
-    projectId: 'primeform-app',
-    storageBucket: 'primeform-app.firebasestorage.app',
+    apiKey: 'AIzaSyB5JXbKDbvAKLiZWODr2xdRy1hTz_wFU6k',
+    appId: '1:1012262737591:android:af57fc9fbf75f9665d9f32',
+    messagingSenderId: '1012262737591',
+    projectId: 'physiq-37293',
+    storageBucket: 'physiq-37293.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAEufH9_L_nvBA7B4QikyuW5-bs95V141E',
-    appId: '1:682188599088:ios:8f3f51142c7682e1dde2f5',
-    messagingSenderId: '682188599088',
-    projectId: 'primeform-app',
-    storageBucket: 'primeform-app.firebasestorage.app',
-    iosBundleId: 'com.example.primeformApp',
+    apiKey: 'AIzaSyDxzAjKKuWJq2tyZlm8Xexa6YZibFsFbdk',
+    appId: '1:1012262737591:ios:3f1f3282e257cc895d9f32',
+    messagingSenderId: '1012262737591',
+    projectId: 'physiq-37293',
+    storageBucket: 'physiq-37293.firebasestorage.app',
+    iosBundleId: 'ai.kineticiq.lyva',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAEufH9_L_nvBA7B4QikyuW5-bs95V141E',
-    appId: '1:682188599088:ios:8f3f51142c7682e1dde2f5',
-    messagingSenderId: '682188599088',
-    projectId: 'primeform-app',
-    storageBucket: 'primeform-app.firebasestorage.app',
-    iosBundleId: 'com.example.primeformApp',
+    apiKey: 'AIzaSyDxzAjKKuWJq2tyZlm8Xexa6YZibFsFbdk',
+    appId: '1:1012262737591:ios:3f1f3282e257cc895d9f32',
+    messagingSenderId: '1012262737591',
+    projectId: 'physiq-37293',
+    storageBucket: 'physiq-37293.firebasestorage.app',
+    iosBundleId: 'ai.kineticiq.lyva',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

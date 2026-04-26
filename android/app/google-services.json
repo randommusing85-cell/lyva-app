@@ -1,21 +1,40 @@
 {
   "project_info": {
-    "project_number": "682188599088",
-    "project_id": "primeform-app",
-    "storage_bucket": "primeform-app.firebasestorage.app"
+    "project_number": "1012262737591",
+    "project_id": "physiq-37293",
+    "storage_bucket": "physiq-37293.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:682188599088:android:de2c7cba5dfed4cedde2f5",
+        "mobilesdk_app_id": "1:1012262737591:android:af57fc9fbf75f9665d9f32",
         "android_client_info": {
-          "package_name": "com.example.primeform_app"
+          "package_name": "ai.kineticiq.lyva"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBkdILt8ih6IQrqeQ-RbdYRqNN2MgFEOlo"
+          "current_key": "AIzaSyB5JXbKDbvAKLiZWODr2xdRy1hTz_wFU6k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1012262737591:android:1a99d3677140b6835d9f32",
+        "android_client_info": {
+          "package_name": "com.kennethsam.physiq"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5JXbKDbvAKLiZWODr2xdRy1hTz_wFU6k"
         }
       ],
       "services": {
