@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDxzAjKKuWJq2tyZlm8Xexa6YZibFsFbdk</string>
+	<string>AIzaSyAEufH9_L_nvBA7B4QikyuW5-bs95V141E</string>
 	<key>GCM_SENDER_ID</key>
-	<string>1012262737591</string>
+	<string>682188599088</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>ai.kineticiq.lyva</string>
 	<key>PROJECT_ID</key>
-	<string>physiq-37293</string>
+	<string>primeform-app</string>
 	<key>STORAGE_BUCKET</key>
-	<string>physiq-37293.firebasestorage.app</string>
+	<string>primeform-app.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1012262737591:ios:3f1f3282e257cc895d9f32</string>
+	<string>1:682188599088:ios:1363501f34ba1941dde2f5</string>
 </dict>
 </plist>

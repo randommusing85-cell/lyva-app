@@ -51,28 +51,28 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB5JXbKDbvAKLiZWODr2xdRy1hTz_wFU6k',
-    appId: '1:1012262737591:android:af57fc9fbf75f9665d9f32',
-    messagingSenderId: '1012262737591',
-    projectId: 'physiq-37293',
-    storageBucket: 'physiq-37293.firebasestorage.app',
+    apiKey: 'AIzaSyBkdILt8ih6IQrqeQ-RbdYRqNN2MgFEOlo',
+    appId: '1:682188599088:android:2a06f60e1579d8c2dde2f5',
+    messagingSenderId: '682188599088',
+    projectId: 'primeform-app',
+    storageBucket: 'primeform-app.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDxzAjKKuWJq2tyZlm8Xexa6YZibFsFbdk',
-    appId: '1:1012262737591:ios:3f1f3282e257cc895d9f32',
-    messagingSenderId: '1012262737591',
-    projectId: 'physiq-37293',
-    storageBucket: 'physiq-37293.firebasestorage.app',
+    apiKey: 'AIzaSyAEufH9_L_nvBA7B4QikyuW5-bs95V141E',
+    appId: '1:682188599088:ios:1363501f34ba1941dde2f5',
+    messagingSenderId: '682188599088',
+    projectId: 'primeform-app',
+    storageBucket: 'primeform-app.firebasestorage.app',
     iosBundleId: 'ai.kineticiq.lyva',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDxzAjKKuWJq2tyZlm8Xexa6YZibFsFbdk',
-    appId: '1:1012262737591:ios:3f1f3282e257cc895d9f32',
-    messagingSenderId: '1012262737591',
-    projectId: 'physiq-37293',
-    storageBucket: 'physiq-37293.firebasestorage.app',
+    apiKey: 'AIzaSyAEufH9_L_nvBA7B4QikyuW5-bs95V141E',
+    appId: '1:682188599088:ios:1363501f34ba1941dde2f5',
+    messagingSenderId: '682188599088',
+    projectId: 'primeform-app',
+    storageBucket: 'primeform-app.firebasestorage.app',
     iosBundleId: 'ai.kineticiq.lyva',
   );
 

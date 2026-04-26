@@ -16,7 +16,7 @@
       "android": {
         "default": {
           "projectId": "primeform-app",
-          "appId": "1:682188599088:android:de2c7cba5dfed4cedde2f5",
+          "appId": "1:682188599088:android:2a06f60e1579d8c2dde2f5",
           "fileOutput": "android/app/google-services.json"
         }
       },
@@ -24,9 +24,9 @@
         "lib/firebase_options.dart": {
           "projectId": "primeform-app",
           "configurations": {
-            "android": "1:682188599088:android:de2c7cba5dfed4cedde2f5",
-            "ios": "1:682188599088:ios:8f3f51142c7682e1dde2f5",
-            "macos": "1:682188599088:ios:8f3f51142c7682e1dde2f5",
+            "android": "1:682188599088:android:2a06f60e1579d8c2dde2f5",
+            "ios": "1:682188599088:ios:1363501f34ba1941dde2f5",
+            "macos": "1:682188599088:ios:1363501f34ba1941dde2f5",
             "web": "1:682188599088:web:8e8cadcb75aa681cdde2f5",
             "windows": "1:682188599088:web:af12b46729342befdde2f5"
           }
