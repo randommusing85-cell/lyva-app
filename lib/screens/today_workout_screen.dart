@@ -89,7 +89,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
     );
 
     if (result != null && mounted) {
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.skipSession(dayIndex: dayIndex, reason: result);
 
       // Track analytics
@@ -167,7 +167,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
 
     final asyncTemplate = ref.watch(latestWorkoutTemplateProvider);
     final asyncDayIndex = ref.watch(todayWorkoutDayProvider);

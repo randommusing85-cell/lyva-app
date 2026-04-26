@@ -1,11 +1,11 @@
-# PrimeForm v0.1 - Tester Guide
+# Lyva v0.1 - Tester Guide
 
 ## 📱 Installation Instructions
 
 ### Step 1: Download the APK
 - **Option A:** Download from GitHub release link (will be provided)
 - **Option B:** Download from email attachment
-- Save the file: `PrimeForm-v0.1.0-beta.apk`
+- Save the file: `Lyva-v0.1.0-beta.apk`
 
 ### Step 2: Enable Installation from Unknown Sources
 
@@ -26,11 +26,11 @@
 1. Open the downloaded APK file from your Downloads folder
 2. Tap **"Install"**
 3. Wait for installation to complete (10-30 seconds)
-4. Tap **"Open"** or find **"PrimeForm"** in your app drawer
+4. Tap **"Open"** or find **"Lyva"** in your app drawer
 
 ### Step 4: Delete Old Version (If Applicable)
-If you previously had PrimeForm installed:
-1. Long-press the PrimeForm app icon
+If you previously had Lyva installed:
+1. Long-press the Lyva app icon
 2. Tap "Uninstall" or drag to trash
 3. Then install the new APK
 
@@ -38,7 +38,7 @@ If you previously had PrimeForm installed:
 
 ## ✨ What You're Testing
 
-PrimeForm is a fitness app focused on **consistency over perfection**. This is the first internal test version.
+Lyva is a fitness app focused on **consistency over perfection**. This is the first internal test version.
 
 ### Core Features:
 

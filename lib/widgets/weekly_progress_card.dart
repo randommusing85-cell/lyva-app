@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
-import '../repos/prime_repo.dart';
+import '../repos/lyva_repo.dart';
 
 class WeeklyProgressCard extends ConsumerWidget {
   const WeeklyProgressCard({super.key});
@@ -9,7 +9,7 @@ class WeeklyProgressCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
 
     return FutureBuilder(
       future: _getWeeklyProgress(repo),
@@ -126,7 +126,7 @@ class WeeklyProgressCard extends ConsumerWidget {
     );
   }
 
-  Future<Map<String, int>> _getWeeklyProgress(PrimeRepo repo) async {
+  Future<Map<String, int>> _getWeeklyProgress(LyvaRepo repo) async {
     final template = await repo.getLatestWorkoutTemplate();
     if (template == null) {
       return {'completed': 0, 'total': 0};

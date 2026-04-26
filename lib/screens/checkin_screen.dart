@@ -91,7 +91,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
         ..moodScore = _selectedMood
         ..energyScore = _selectedEnergy;
 
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.addCheckIn(c);
 
       // Track analytics

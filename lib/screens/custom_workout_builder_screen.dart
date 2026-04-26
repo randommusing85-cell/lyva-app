@@ -786,7 +786,7 @@ class _CustomWorkoutBuilderScreenState
         ..isCustom = true
         ..json = jsonData;
 
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.saveWorkoutTemplate(template);
 
       // Track analytics

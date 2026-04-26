@@ -9,7 +9,7 @@ class FoodApiService {
   Future<FoodItem?> lookupBarcode(String barcode) async {
     final url = Uri.parse('$_baseUrl/api/v2/product/$barcode.json');
     final response = await http.get(url, headers: {
-      'User-Agent': 'PrimeFormApp/1.0 (Flutter)',
+      'User-Agent': 'LyvaApp/1.0 (Flutter)',
     });
 
     if (response.statusCode != 200) return null;
@@ -30,7 +30,7 @@ class FoodApiService {
       '&search_simple=1&action=process&json=1&page_size=15',
     );
     final response = await http.get(url, headers: {
-      'User-Agent': 'PrimeFormApp/1.0 (Flutter)',
+      'User-Agent': 'LyvaApp/1.0 (Flutter)',
     });
 
     if (response.statusCode != 200) return [];

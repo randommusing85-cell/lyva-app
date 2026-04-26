@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// PrimeForm Design System
+/// Lyva Design System
 /// Based on Figma designs with warm, welcoming aesthetic
 
 class AppColors {
@@ -303,7 +303,7 @@ class AppTheme {
   }
 }
 
-/// Custom widget styles for PrimeForm
+/// Custom widget styles for Lyva
 class AppStyles {
   // Card with shadow
   static BoxDecoration get cardDecoration => BoxDecoration(

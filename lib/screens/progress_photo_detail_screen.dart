@@ -35,7 +35,7 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
     setState(() => _analyzing = true);
 
     try {
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       final imageBytes = await File(photo.imagePath).readAsBytes();
       final base64Image = base64Encode(imageBytes);
 
@@ -129,7 +129,7 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
                 ),
               );
               if (confirmed == true) {
-                await ref.read(primeRepoProvider).deleteProgressPhoto(photo.id);
+                await ref.read(lyvaRepoProvider).deleteProgressPhoto(photo.id);
                 // Delete the file too
                 try { await File(photo.imagePath).delete(); } catch (_) {}
                 if (context.mounted) Navigator.pop(context);

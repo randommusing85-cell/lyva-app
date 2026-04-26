@@ -242,7 +242,7 @@ class _ExportDataScreenState extends ConsumerState<ExportDataScreen> {
     setState(() => _exporting = true);
 
     try {
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       final exportService = ExportService(repo);
       final profile = await ref.read(userProfileProvider.future);
 
@@ -286,7 +286,7 @@ class _ExportDataScreenState extends ConsumerState<ExportDataScreen> {
       // Share via system share sheet
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'PrimeForm Export',
+        subject: 'Lyva Export',
       );
     } catch (e) {
       if (mounted) {

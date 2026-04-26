@@ -1,4 +1,4 @@
-# PrimeForm
+# Lyva
 
 **Your AI Fitness Companion** — A smart fitness app designed specifically for women, with cycle-aware training, post-partum guidance, and AI-powered coaching.
 
@@ -8,7 +8,7 @@ Built by [KineticIQ](mailto:kineticiq.ai@gmail.com)
 
 ## Overview
 
-PrimeForm takes a science-first approach to women's fitness. It generates personalized nutrition and workout plans using AI, adapts recommendations based on menstrual cycle phases and post-partum recovery status, and tracks progress across workouts, meals, and daily check-ins.
+Lyva takes a science-first approach to women's fitness. It generates personalized nutrition and workout plans using AI, adapts recommendations based on menstrual cycle phases and post-partum recovery status, and tracks progress across workouts, meals, and daily check-ins.
 
 ---
 

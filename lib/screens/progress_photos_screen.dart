@@ -54,7 +54,7 @@ class _ProgressPhotosScreenState extends ConsumerState<ProgressPhotosScreen> {
         ..ts = DateTime.now()
         ..imagePath = savedPath;
 
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.saveProgressPhoto(photo);
       ref.read(analyticsProvider).logProgressPhotoTaken();
     } catch (e) {

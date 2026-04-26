@@ -741,7 +741,7 @@ class _MealCard extends ConsumerWidget {
       final analytics = ref.read(analyticsProvider);
       await analytics.logMealDeleted(mealType: meal.mealType);
 
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.deleteMealLog(meal.id);
       ref.invalidate(todayMealsStreamProvider);
     }
@@ -805,7 +805,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
   Future<void> _performSearch(String query) async {
     setState(() => _isSearching = true);
     try {
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       // Search local first
       var results = await repo.searchFoodItems(query);
       if (results.isEmpty) {
@@ -877,7 +877,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
             ? null
             : _descCtrl.text.trim();
 
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.addMealLog(meal);
 
       final analytics = ref.read(analyticsProvider);
@@ -1366,7 +1366,7 @@ class _EditMealSheetState extends ConsumerState<_EditMealSheet> {
             ? null
             : _descCtrl.text.trim();
 
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.updateMealLog(updatedMeal);
 
       final analytics = ref.read(analyticsProvider);

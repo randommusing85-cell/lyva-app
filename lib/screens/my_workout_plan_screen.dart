@@ -470,7 +470,7 @@ class _MyWorkoutPlanScreenState extends ConsumerState<MyWorkoutPlanScreen> {
     if (_currentDoc == null || _templateData == null) return;
 
     try {
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       await repo.updateWorkoutTemplateJson(
         _currentDoc!.id,
         jsonEncode(_templateData),

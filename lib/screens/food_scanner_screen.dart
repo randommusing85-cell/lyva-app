@@ -62,7 +62,7 @@ class _FoodScannerScreenState extends ConsumerState<FoodScannerScreen> {
 
     try {
       // 1. Check local DB
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       var item = await repo.getFoodByBarcode(barcode);
 
       if (item == null) {
@@ -102,7 +102,7 @@ class _FoodScannerScreenState extends ConsumerState<FoodScannerScreen> {
       final item = await _ocrService.scanNutritionLabel(File(picked.path));
       if (item != null) {
         // Cache the OCR result
-        final repo = ref.read(primeRepoProvider);
+        final repo = ref.read(lyvaRepoProvider);
         await repo.saveFoodItem(item);
       }
 

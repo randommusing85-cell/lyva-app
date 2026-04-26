@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
 
     <application
-        android:label="primeform_app_fixed"
+        android:label="Lyva"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

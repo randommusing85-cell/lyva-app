@@ -143,13 +143,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Row(
                         children: [
                           SvgPicture.asset(
-                            'assets/logo/primeform_logo.svg',
+                            'assets/logo/Lyva/symbol-only.svg',
                             width: 36,
                             height: 36,
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            'PrimeForm',
+                            'Lyva',
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),

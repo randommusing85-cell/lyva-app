@@ -1,4 +1,4 @@
-# PrimeForm - What's Next? 🚀
+# Lyva - What's Next? 🚀
 
 ## 📊 Current State (v0.1 - January 2026)
 
@@ -143,7 +143,7 @@
 **Add this provider:**
 ```dart
 final weeklyMacroTotalsProvider = FutureProvider.autoDispose<List<DailyMacroTotal>>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getDailyMacroTotals(7); // Last 7 days
 });
 ```

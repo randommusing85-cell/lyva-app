@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-PrimeForm is an AI-powered fitness app designed for women, built by KineticIQ. It features cycle-aware training, post-partum recovery guidance, AI-generated nutrition/workout plans, and daily tracking.
+Lyva is an AI-powered fitness app designed for women, built by KineticIQ. It features cycle-aware training, post-partum recovery guidance, AI-generated nutrition/workout plans, and daily tracking.
 
 ## Tech Stack
 
@@ -40,7 +40,7 @@ lib/
   db/isar_db.dart        # Isar database singleton
   data/                  # Static data (exercise alternatives)
   models/                # Isar collection models (with .g.dart generated files)
-  repos/                 # Data access layer (PrimeRepo, UserProfileRepo)
+  repos/                 # Data access layer (LyvaRepo, UserProfileRepo)
   screens/               # All app screens
   services/              # Business logic services (notifications, analytics, food API, steps)
   state/providers.dart   # All Riverpod providers (single file)
@@ -81,7 +81,7 @@ lib/
 
 - Use Riverpod for all state management; add new providers to `lib/state/providers.dart`
 - Screens go in `lib/screens/`, widgets in `lib/widgets/`
-- Use the existing repo pattern (`PrimeRepo`, `UserProfileRepo`) for data access
+- Use the existing repo pattern (`LyvaRepo`, `UserProfileRepo`) for data access
 - Follow Material 3 conventions with the custom `AppTheme`
 - Use `ConsumerWidget` / `ConsumerStatefulWidget` for widgets that need Riverpod state
 - Prefer `autoDispose` providers where appropriate to avoid memory leaks

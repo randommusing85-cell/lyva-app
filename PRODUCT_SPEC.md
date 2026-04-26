@@ -1,13 +1,13 @@
-# PrimeForm / PhysIQ  
+# Lyva  
 *A calm, intelligent fitness system for consistency over confusion*
 
 ---
 
 ## Overview
 
-PrimeForm (working name: PhysIQ) is a fitness and nutrition app designed to reduce confusion, overwhelm, and decision fatigue—especially for beginners, restarters, and busy adults.
+Lyva is a fitness and nutrition app designed to reduce confusion, overwhelm, and decision fatigue—especially for beginners, restarters, and busy adults.
 
-Rather than chasing perfect accuracy or extreme optimisation, PrimeForm prioritises:
+Rather than chasing perfect accuracy or extreme optimisation, Lyva prioritises:
 - consistency
 - clarity
 - conservative, safe guidance
@@ -19,14 +19,14 @@ The app combines structured fitness principles with AI-assisted coaching, while 
 
 ## Product Philosophy
 
-**What PrimeForm believes**
+**What Lyva believes**
 - Consistency matters more than precision
 - Habits come before optimisation
 - Calm guidance beats aggressive motivation
 - Trends matter more than day-to-day noise
 - AI should interpret and guide—not judge or shame
 
-**What PrimeForm is not**
+**What Lyva is not**
 - Not a calorie database race
 - Not a social fitness platform
 - Not a "30-day shredded" app
@@ -356,7 +356,7 @@ Unlock depth *after* habits are established.
 
 ## Long-Term Vision
 
-PrimeForm / PhysIQ aims to become:
+Lyva aims to become:
 > A trusted, calm fitness companion people rely on—like MyFitnessPal for logging, but personalised, humane, and intelligent.
 
 The app is designed to grow with the user:
@@ -365,4 +365,4 @@ The app is designed to grow with the user:
 - always grounded in safety and realism
 
 **Core Differentiator:**  
-Unlike apps that guess your schedule or create false guilt, PrimeForm knows *exactly* when you planned to train and measures consistency against *your* plan—not an arbitrary standard.
+Unlike apps that guess your schedule or create false guilt, Lyva knows *exactly* when you planned to train and measures consistency against *your* plan—not an arbitrary standard.

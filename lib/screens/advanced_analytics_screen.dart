@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/user_profile.dart';
 import '../models/workout_session_doc.dart';
-import '../repos/prime_repo.dart';
+import '../repos/lyva_repo.dart';
 import '../services/premium_service.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
@@ -300,7 +300,7 @@ class _WorkoutFrequencyCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final now = DateTime.now();
     final start = now.subtract(Duration(days: rangeDays));
-    final repo = ref.watch(primeRepoProvider);
+    final repo = ref.watch(lyvaRepoProvider);
 
     return _AnalyticsCard(
       title: 'Workout Frequency',

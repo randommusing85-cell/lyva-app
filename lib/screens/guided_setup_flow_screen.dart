@@ -200,7 +200,7 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
       ..fatG = n(macros["fat_g"], 60).round()
       ..stepTarget = n(_nutritionPlanJson!["step_target"], 8000).round();
 
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
     await repo.upsertPlan(plan);
 
     final analytics = AnalyticsService();
@@ -231,7 +231,7 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
         throw Exception('Profile not found');
       }
 
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
 
       final res = await showGeneratingOverlay<Map<String, dynamic>>(
         context: context,
@@ -294,7 +294,7 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
     if (_workoutResponse == null) return;
 
     final profile = ref.read(userProfileProvider).value;
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
 
     await repo.saveWorkoutTemplateFromResponse(
       response: _workoutResponse!,

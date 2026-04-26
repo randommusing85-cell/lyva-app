@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="360" viewBox="0 0 400 360">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400&display=swap');
+    </style>
+  </defs>
+  <!-- Symbol — centred -->
+  <circle cx="200" cy="110" r="90" fill="none" stroke="#F4C0D1" stroke-width="2"/>
+  <circle cx="200" cy="110" r="70" fill="none" stroke="#ED93B1" stroke-width="1.5"/>
+  <circle cx="200" cy="110" r="50" fill="#8B2252"/>
+  <text x="200" y="128" font-family="'Cormorant Garamond', Georgia, serif" font-size="50" font-weight="500" fill="#FBEAF0" text-anchor="middle">ly</text>
+  <!-- Triple bud -->
+  <circle cx="200" cy="20" r="10" fill="#8B2252"/>
+  <circle cx="174" cy="27" r="7" fill="#C4608A" opacity="0.7"/>
+  <circle cx="226" cy="27" r="7" fill="#C4608A" opacity="0.7"/>
+  <!-- Wordmark below -->
+  <text x="118" y="270" font-family="'Cormorant Garamond', Georgia, serif" font-size="100" font-weight="600" fill="#8B2252" letter-spacing="3">ly</text>
+  <text x="228" y="270" font-family="'Cormorant Garamond', Georgia, serif" font-size="100" font-weight="400" fill="#C4608A" letter-spacing="3">va</text>
+  <!-- Underline -->
+  <line x1="118" y1="282" x2="358" y2="282" stroke="#C4608A" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Tagline -->
+  <text x="200" y="314" font-family="'DM Sans', sans-serif" font-size="14" font-weight="300" fill="#C4608A" text-anchor="middle" letter-spacing="5">LIVE · THRIVE</text>
+</svg>

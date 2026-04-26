@@ -1,8 +1,8 @@
-# PrimeForm
+# Lyva
 
 **A calm, intelligent fitness app focused on clarity, consistency, and long-term habit building.**
 
-PrimeForm combines structured fitness principles with AI-assisted coaching to help users train, eat, and progress—without confusion, overwhelm, or obsession.
+Lyva combines structured fitness principles with AI-assisted coaching to help users train, eat, and progress—without confusion, overwhelm, or obsession.
 
 > **Current Status**: Alpha (active development)  
 > **Platform**: Android (iOS-ready)  
@@ -29,14 +29,14 @@ PrimeForm combines structured fitness principles with AI-assisted coaching to he
 
 ## 🎯 Product Philosophy
 
-**What PrimeForm believes:**
+**What Lyva believes:**
 - Consistency matters more than precision
 - Habits come before optimization
 - Calm guidance beats aggressive motivation
 - Trends matter more than daily noise
 - AI should guide and encourage—not judge or shame
 
-**What PrimeForm is NOT:**
+**What Lyva is NOT:**
 - Not a calorie database race
 - Not a social fitness platform
 - Not a "30-day transformation" app
@@ -280,8 +280,8 @@ PrimeForm combines structured fitness principles with AI-assisted coaching to he
 
 ```bash
 # Clone the repository
-git clone https://github.com/randommusing85-cell/primeform-app-android.git
-cd primeform-app-android
+git clone https://github.com/randommusing85-cell/lyva-app.git
+cd lyva-app
 
 # Install dependencies
 flutter pub get
@@ -386,7 +386,7 @@ This is a personal project and portfolio piece. Not currently open for contribut
 
 **Kenneth Sam**
 
-Building PrimeForm as part of:
+Building Lyva as part of:
 - M.Sc. Computer Science (Industry 4.0) - National University of Singapore
 - Personal fitness journey and recovery from medical setbacks
 - Product validation exercise for entrepreneurial path
@@ -410,10 +410,8 @@ Building PrimeForm as part of:
 
 ## 📝 Notes
 
-**Why "PrimeForm"?**
-- "Prime" = optimal state, first-class quality
-- "Form" = physical shape + proper technique
-- Together: achieving your optimal physical state through proper fundamentals
+**Why "Lyva"?**
+- A short, distinctive name evoking life, vitality, and lift — the calm energy of building yourself up over time.
 
 **Design Inspiration:**
 - MyFitnessPal (logging simplicity)

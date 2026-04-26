@@ -8,11 +8,11 @@ import 'package:pdf/widgets.dart' as pw;
 import '../models/checkin.dart';
 import '../models/meal_log.dart';
 import '../models/workout_session_doc.dart';
-import '../repos/prime_repo.dart';
+import '../repos/lyva_repo.dart';
 
 /// Service for exporting user data to CSV or PDF.
 class ExportService {
-  final PrimeRepo _repo;
+  final LyvaRepo _repo;
 
   ExportService(this._repo);
 
@@ -77,7 +77,7 @@ class ExportService {
     }
 
     final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/primeform_export_${dateFormat.format(DateTime.now())}.csv');
+    final file = File('${dir.path}/lyva_export_${dateFormat.format(DateTime.now())}.csv');
     await file.writeAsString(buffer.toString());
     return file;
   }
@@ -123,7 +123,7 @@ class ExportService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text('PrimeForm Progress Report',
+            pw.Text('Lyva Progress Report',
                 style: pw.TextStyle(
                     fontSize: 24, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 8),
@@ -287,7 +287,7 @@ class ExportService {
 
     final dir = await getTemporaryDirectory();
     final file = File(
-        '${dir.path}/primeform_report_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf');
+        '${dir.path}/lyva_report_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file;
   }

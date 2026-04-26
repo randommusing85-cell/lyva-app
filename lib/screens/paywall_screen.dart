@@ -141,7 +141,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ),
         const SizedBox(height: 16),
         const Text(
-          'Unlock PrimeForm',
+          'Unlock Lyva',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -472,7 +472,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Welcome to PrimeForm ${tier == 'premium' ? 'Premium' : 'Essentials'}!'),
+            content: Text('Welcome to Lyva ${tier == 'premium' ? 'Premium' : 'Essentials'}!'),
             backgroundColor: AppColors.primary,
           ),
         );

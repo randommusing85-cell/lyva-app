@@ -121,7 +121,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               children: [
                 // App logo icon only
                 SvgPicture.asset(
-                  'assets/logo/primeform_logo.svg',
+                  'assets/logo/Lyva/splash-screen.svg',
                   width: 100,
                   height: 100,
                 ),
@@ -130,7 +130,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                 // App name in styled text
                 const Text(
-                  'PrimeForm',
+                  'Lyva',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w700,

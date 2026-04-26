@@ -1,6 +1,6 @@
-# PrimeForm — Technical Specification
+# Lyva — Technical Specification
 
-This document describes the technical stack, architecture decisions, and build instructions for PrimeForm.
+This document describes the technical stack, architecture decisions, and build instructions for Lyva.
 
 ---
 

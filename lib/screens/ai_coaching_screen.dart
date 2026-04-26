@@ -64,7 +64,7 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
     _inputCtrl.clear();
     setState(() => _sending = true);
 
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
 
     // Save user message
     final userMsg = CoachMessage()
@@ -143,7 +143,7 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
     List<Map<String, dynamic>> existingInsights,
   ) async {
     try {
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       final newInsights = await repo.extractInsights(
         conversationHistory: history,
         existingInsights: existingInsights,
@@ -178,7 +178,7 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
     );
 
     if (confirmed == true) {
-      await ref.read(primeRepoProvider).clearCoachMessages();
+      await ref.read(lyvaRepoProvider).clearCoachMessages();
     }
   }
 
@@ -276,7 +276,7 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
                     child: AiInsightCard(
                       insight: insights[i],
                       onDismiss: () async {
-                        await ref.read(primeRepoProvider).dismissInsight(insights[i].id);
+                        await ref.read(lyvaRepoProvider).dismissInsight(insights[i].id);
                         ref.invalidate(aiInsightsProvider);
                       },
                     ),

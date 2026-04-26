@@ -212,7 +212,7 @@ class SettingsScreen extends ConsumerWidget {
 
                   _SettingsTile(
                     icon: Icons.info_outline,
-                    title: 'About PrimeForm',
+                    title: 'About Lyva',
                     onTap: () => _showAboutDialog(context),
                   ),
 
@@ -255,13 +255,13 @@ class SettingsScreen extends ConsumerWidget {
                     child: Column(
                       children: [
                         SvgPicture.asset(
-                          'assets/logo/primeform_logo.svg',
+                          'assets/logo/Lyva/symbol-only.svg',
                           width: 48,
                           height: 48,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'PrimeForm v1.0.0',
+                          'Lyva v1.0.0',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: AppColors.textMuted,
                           ),
@@ -419,7 +419,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 12),
               Text(
-                'PrimeForm provides fitness guidance, NOT medical advice. Always consult your healthcare provider before starting any exercise program.',
+                'Lyva provides fitness guidance, NOT medical advice. Always consult your healthcare provider before starting any exercise program.',
               ),
               SizedBox(height: 12),
               Text(
@@ -433,7 +433,7 @@ class SettingsScreen extends ConsumerWidget {
               Text('• Have pelvic floor concerns'),
               SizedBox(height: 12),
               Text(
-                'PrimeForm is not a substitute for professional medical advice, diagnosis, or treatment.',
+                'Lyva is not a substitute for professional medical advice, diagnosis, or treatment.',
                 style: TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
@@ -501,7 +501,7 @@ class SettingsScreen extends ConsumerWidget {
     final uri = Uri(
       scheme: 'mailto',
       path: 'kineticiq.ai@gmail.com',
-      query: 'subject=PrimeForm Feedback',
+      query: 'subject=Lyva Feedback',
     );
     launchUrl(uri);
   }
@@ -515,13 +515,13 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               const SizedBox(height: 8),
               SvgPicture.asset(
-                'assets/logo/primeform_logo.svg',
+                'assets/logo/Lyva/symbol-only.svg',
                 width: 64,
                 height: 64,
               ),
               const SizedBox(height: 12),
               const Text(
-                'PrimeForm',
+                'Lyva',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -595,7 +595,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 8),
               Text(
-                'By using PrimeForm, you agree to these Terms of Service. If you do not agree, please do not use the app.',
+                'By using Lyva, you agree to these Terms of Service. If you do not agree, please do not use the app.',
               ),
               SizedBox(height: 16),
               Text(
@@ -604,7 +604,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 8),
               Text(
-                'PrimeForm provides fitness guidance, workout plans, nutrition tracking, and AI coaching features. The service is intended for general fitness purposes only.',
+                'Lyva provides fitness guidance, workout plans, nutrition tracking, and AI coaching features. The service is intended for general fitness purposes only.',
               ),
               SizedBox(height: 16),
               Text(
@@ -613,7 +613,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 8),
               Text(
-                'PrimeForm is NOT a substitute for professional medical advice, diagnosis, or treatment. Always consult your healthcare provider before starting any exercise or nutrition program.',
+                'Lyva is NOT a substitute for professional medical advice, diagnosis, or treatment. Always consult your healthcare provider before starting any exercise or nutrition program.',
               ),
               SizedBox(height: 16),
               Text(
@@ -633,7 +633,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 8),
               Text(
-                'PrimeForm and its creators are not liable for any injuries, health issues, or damages arising from use of the app. Use at your own risk.',
+                'Lyva and its creators are not liable for any injuries, health issues, or damages arising from use of the app. Use at your own risk.',
               ),
               SizedBox(height: 16),
               Text(
@@ -748,7 +748,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 8),
               Text(
-                'PrimeForm is not intended for users under 18. We do not knowingly collect data from children.',
+                'Lyva is not intended for users under 18. We do not knowingly collect data from children.',
               ),
               SizedBox(height: 16),
               Text(

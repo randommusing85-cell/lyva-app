@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import '../repos/prime_repo.dart';
+import '../repos/lyva_repo.dart';
 import '../repos/user_profile_repo.dart';
 import '../models/checkin.dart';
 import '../models/prime_plan.dart';
@@ -27,7 +27,7 @@ import '../utils/plateau_detector.dart';
 // REPOSITORY PROVIDERS
 // ============================================================================
 
-final primeRepoProvider = Provider<PrimeRepo>((ref) => PrimeRepo());
+final lyvaRepoProvider = Provider<LyvaRepo>((ref) => LyvaRepo());
 
 final userProfileRepoProvider = Provider<UserProfileRepo>(
   (ref) => UserProfileRepo(),
@@ -53,7 +53,7 @@ final activeInjuriesProvider = StreamProvider.autoDispose<List<String>>((ref) {
 // ============================================================================
 
 final latestCheckInsStreamProvider = StreamProvider.autoDispose<List<CheckIn>>((ref) {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.watchLatestCheckIns(limit: 30);
 });
 
@@ -63,13 +63,13 @@ final latestCheckInsStreamProvider = StreamProvider.autoDispose<List<CheckIn>>((
 
 // Today's meals stream provider
 final todayMealsStreamProvider = StreamProvider.autoDispose<List<MealLog>>((ref) {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.watchTodayMeals();
 });
 
 // Weekly macro totals provider (for MacroAdherenceCard)
 final weeklyMacroTotalsProvider = FutureProvider.autoDispose<List<DailyMacroTotal>>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getDailyMacroTotals(7); // Last 7 days
 });
 
@@ -78,12 +78,12 @@ final weeklyMacroTotalsProvider = FutureProvider.autoDispose<List<DailyMacroTota
 // ============================================================================
 
 final activePlanProvider = FutureProvider.autoDispose<PrimePlan?>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getActivePlan();
 });
 
 final latestWorkoutTemplateProvider = FutureProvider<WorkoutTemplateDoc?>((ref) async {
-  final repo = ref.read(primeRepoProvider);
+  final repo = ref.read(lyvaRepoProvider);
   return repo.getLatestWorkoutTemplate();
 });
 
@@ -92,7 +92,7 @@ final latestWorkoutTemplateProvider = FutureProvider<WorkoutTemplateDoc?>((ref) 
 // ============================================================================
 
 final todayWorkoutDayProvider = FutureProvider<int?>((ref) async {
-  final repo = ref.read(primeRepoProvider);
+  final repo = ref.read(lyvaRepoProvider);
   final template = await repo.getLatestWorkoutTemplate();
   if (template == null) return null;
   
@@ -122,7 +122,7 @@ final todayWorkoutDayProvider = FutureProvider<int?>((ref) async {
 
 // This week's completed sessions provider
 final thisWeekSessionsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getThisWeekSessions();
 });
 
@@ -137,19 +137,19 @@ final selectedCalendarMonthProvider = StateProvider<DateTime>((ref) {
 
 // Monthly workout sessions (for calendar grid)
 final monthlyWorkoutSessionsProvider = FutureProvider.autoDispose.family<List<WorkoutSessionDoc>, DateTime>((ref, month) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getWorkoutSessionsForMonth(month);
 });
 
 // Specific day's workout session
 final dayWorkoutSessionProvider = FutureProvider.autoDispose.family<WorkoutSessionDoc?, DateTime>((ref, date) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getWorkoutSessionForDate(date);
 });
 
 // Missed workouts count (this week) - smart miss tracking
 final missedWorkoutsThisWeekProvider = FutureProvider.autoDispose<int>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   final template = await repo.getLatestWorkoutTemplate();
   if (template == null) return 0;
   
@@ -255,7 +255,7 @@ final foodApiServiceProvider = Provider<FoodApiService>((ref) => FoodApiService(
 final foodSearchProvider = FutureProvider.autoDispose.family<List<FoodItem>, String>((ref, query) async {
   if (query.trim().length < 2) return [];
 
-  final repo = ref.read(primeRepoProvider);
+  final repo = ref.read(lyvaRepoProvider);
 
   // 1. Search local database
   final localResults = await repo.searchFoodItems(query);
@@ -337,7 +337,7 @@ final customerInfoStreamProvider = StreamProvider<CustomerInfo>((ref) {
 
 /// Stream of coaching messages (most recent first)
 final coachMessagesProvider = StreamProvider.autoDispose<List<CoachMessage>>((ref) {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.watchCoachMessages(limit: 100);
 });
 
@@ -347,7 +347,7 @@ final coachMessagesProvider = StreamProvider.autoDispose<List<CoachMessage>>((re
 
 /// All active (non-dismissed) AI insights
 final aiInsightsProvider = FutureProvider.autoDispose<List<AiInsight>>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getActiveInsights();
 });
 
@@ -357,7 +357,7 @@ final aiInsightsProvider = FutureProvider.autoDispose<List<AiInsight>>((ref) asy
 
 /// Stream of all progress photos
 final progressPhotosProvider = StreamProvider.autoDispose<List<ProgressPhoto>>((ref) {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.watchProgressPhotos();
 });
 
@@ -367,13 +367,13 @@ final progressPhotosProvider = StreamProvider.autoDispose<List<ProgressPhoto>>((
 
 /// Latest cycle prediction
 final latestCyclePredictionProvider = FutureProvider.autoDispose<CyclePrediction?>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getLatestPrediction();
 });
 
 /// Cycle symptom log stream
 final cycleLogsProvider = StreamProvider.autoDispose<List<CycleLog>>((ref) {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.watchCycleLogs();
 });
 
@@ -384,21 +384,21 @@ final cycleLogsProvider = StreamProvider.autoDispose<List<CycleLog>>((ref) {
 /// Extended check-ins by limit (for 90-day analytics)
 final extendedCheckInsProvider =
     FutureProvider.autoDispose.family<List<CheckIn>, int>((ref, limit) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.latestCheckIns(limit: limit);
 });
 
 /// Monthly macro totals (30 days)
 final monthlyMacroTotalsProvider =
     FutureProvider.autoDispose<List<DailyMacroTotal>>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getDailyMacroTotals(30);
 });
 
 /// Quarterly macro totals (90 days)
 final quarterlyMacroTotalsProvider =
     FutureProvider.autoDispose<List<DailyMacroTotal>>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getDailyMacroTotals(90);
 });
 
@@ -409,7 +409,7 @@ final quarterlyMacroTotalsProvider =
 /// Custom (user-created) workout templates
 final customTemplatesProvider =
     FutureProvider.autoDispose<List<WorkoutTemplateDoc>>((ref) async {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return repo.getCustomTemplates();
 });
 
@@ -418,7 +418,7 @@ final customTemplatesProvider =
 // ============================================================================
 
 final exportServiceProvider = Provider<ExportService>((ref) {
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   return ExportService(repo);
 });
 
@@ -435,7 +435,7 @@ final plateauStatusProvider = FutureProvider.autoDispose<PlateauStatus?>((ref) a
   final profile = await ref.watch(userProfileProvider.future);
   if (profile == null || profile.goal != 'cut') return null;
 
-  final repo = ref.watch(primeRepoProvider);
+  final repo = ref.watch(lyvaRepoProvider);
   final checkIns = await repo.getCheckInsForLastDays(21);
 
   return PlateauDetector.analyze(

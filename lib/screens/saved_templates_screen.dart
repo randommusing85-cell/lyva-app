@@ -182,7 +182,7 @@ class _SavedTemplatesScreenState extends ConsumerState<SavedTemplatesScreen> {
             );
           },
           onDismissed: (_) async {
-            final repo = ref.read(primeRepoProvider);
+            final repo = ref.read(lyvaRepoProvider);
             await repo.deleteWorkoutTemplate(template.id);
             ref.invalidate(customTemplatesProvider);
           },
@@ -305,7 +305,7 @@ class _SavedTemplatesScreenState extends ConsumerState<SavedTemplatesScreen> {
           template: template,
           scrollController: scrollController,
           onActivate: () async {
-            final repo = ref.read(primeRepoProvider);
+            final repo = ref.read(lyvaRepoProvider);
             // Save this template as the latest (active) one
             final newTemplate = WorkoutTemplateDoc()
               ..createdAt = DateTime.now()

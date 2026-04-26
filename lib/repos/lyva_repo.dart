@@ -17,7 +17,7 @@ import 'package:primeform_app/models/cycle_prediction.dart';
 import 'package:primeform_app/models/cycle_log.dart';
 import 'package:primeform_app/models/user_profile.dart';
 
-class PrimeRepo {
+class LyvaRepo {
   /* =========================
    * CHECK-INS
    * ========================= */

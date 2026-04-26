@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
-import '../repos/prime_repo.dart';
+import '../repos/lyva_repo.dart';
 import '../models/workout_session_doc.dart';
 
 /// Full-featured workout calendar with month view, navigation, and workout history
@@ -34,7 +34,7 @@ class _WorkoutCalendarState extends ConsumerState<WorkoutCalendar> {
   Future<void> _loadMonthSessions() async {
     setState(() => _loading = true);
     
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
     final profile = await ref.read(userProfileProvider.future);
     
     if (profile == null) {

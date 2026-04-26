@@ -135,7 +135,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
       ..phaseStartedAt = DateTime.now()
       ..preRefeedCalories = currentPlan.calories;
 
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
     await repo.upsertPlan(refeedPlan);
 
     ref.read(analyticsProvider).logRefeedStarted(
@@ -198,7 +198,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
       ..phase = 'resumed_deficit'
       ..phaseStartedAt = DateTime.now();
 
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
     await repo.upsertPlan(resumedPlan);
 
     ref.read(analyticsProvider).logRefeedCompleted(
@@ -345,7 +345,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
       ..fatG = current.fatG
       ..stepTarget = newStepTarget;
 
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
     await repo.upsertPlan(updated);
 
     // Track analytics

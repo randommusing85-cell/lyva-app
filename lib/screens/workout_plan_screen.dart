@@ -46,7 +46,7 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
     super.initState();
     // Check if there's an existing workout template with lock
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final existing = await ref.read(primeRepoProvider).getLatestWorkoutTemplate();
+      final existing = await ref.read(lyvaRepoProvider).getLatestWorkoutTemplate();
       if (mounted && existing != null) {
         _checkWorkoutLock(existing.createdAt);
       }
@@ -77,7 +77,7 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
 
     // Initialize from profile on first build
     _initializeFromProfile();

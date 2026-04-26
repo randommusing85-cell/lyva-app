@@ -35,7 +35,7 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
     setState(() => _predicting = true);
 
     try {
-      final repo = ref.read(primeRepoProvider);
+      final repo = ref.read(lyvaRepoProvider);
       final profile = await ref.read(userProfileProvider.future);
       if (profile == null) return;
 
@@ -106,7 +106,7 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
   Future<void> _logSymptom() async {
     if (_selectedSymptom == null) return;
 
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
     final log = CycleLog()
       ..ts = DateTime.now()
       ..eventType = 'symptom'
@@ -141,7 +141,7 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
     );
 
     if (confirmed == true) {
-      await ref.read(primeRepoProvider).confirmPeriodStarted(DateTime.now());
+      await ref.read(lyvaRepoProvider).confirmPeriodStarted(DateTime.now());
       ref.invalidate(userProfileProvider);
       ref.invalidate(currentCyclePhaseProvider);
       ref.invalidate(latestCyclePredictionProvider);

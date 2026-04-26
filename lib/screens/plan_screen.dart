@@ -159,7 +159,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       ..fatG = n(macros["fat_g"], 60).round()
       ..stepTarget = n(planJson["step_target"], 8000).round();
 
-    final repo = ref.read(primeRepoProvider);
+    final repo = ref.read(lyvaRepoProvider);
     await repo.upsertPlan(plan);
 
     // Track analytics

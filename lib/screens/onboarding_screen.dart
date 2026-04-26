@@ -186,7 +186,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Welcome to PrimeForm'),
+        title: const Text('Welcome to Lyva'),
         automaticallyImplyLeading: false,
       ),
       body: Padding(
@@ -226,7 +226,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'PrimeForm is built on one principle: consistency over perfection.',
+                      'Lyva is built on one principle: consistency over perfection.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 8),

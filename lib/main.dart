@@ -51,16 +51,16 @@ void main() async {
         : 'goog_YOUR_ANDROID_REVENUECAT_KEY', // Replace with your Android key
   );
 
-  runApp(const ProviderScope(child: PrimeFormApp()));
+  runApp(const ProviderScope(child: LyvaApp()));
 }
 
-class PrimeFormApp extends ConsumerWidget {
-  const PrimeFormApp({super.key});
+class LyvaApp extends ConsumerWidget {
+  const LyvaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'PrimeForm',
+      title: 'Lyva',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),

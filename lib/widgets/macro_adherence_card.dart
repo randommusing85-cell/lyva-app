@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../repos/prime_repo.dart';
+import '../repos/lyva_repo.dart';
 import '../state/providers.dart';
 
 /// Shows macro adherence for the last 7 days on the home screen
