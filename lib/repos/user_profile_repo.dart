@@ -1,6 +1,6 @@
 import 'package:isar/isar.dart';
-import 'package:primeform_app/db/isar_db.dart';
-import 'package:primeform_app/models/user_profile.dart';
+import 'package:lyva_app/db/isar_db.dart';
+import 'package:lyva_app/models/user_profile.dart';
 
 class UserProfileRepo {
   /// Get the user profile (there should only be one)
