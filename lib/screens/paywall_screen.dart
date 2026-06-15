@@ -229,7 +229,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          'Save 50%',
+                          'Save 33%',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -252,7 +252,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final packageId = _isYearly ? '\$rc_annual' : '\$rc_monthly';
     final package = _findPackage(offering, 'essentials', _isYearly);
     final price = package?.storeProduct.priceString ??
-        (_isYearly ? '\$29.99/yr' : '\$4.99/mo');
+        (_isYearly ? '\$39.99/yr' : '\$4.99/mo');
     final isHighlighted = widget.highlightTier == PremiumTier.essentials;
 
     return _TierCard(
@@ -277,7 +277,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Widget _buildPremiumCard(Offering? offering) {
     final package = _findPackage(offering, 'premium', _isYearly);
     final price = package?.storeProduct.priceString ??
-        (_isYearly ? '\$49.99/yr' : '\$9.99/mo');
+        (_isYearly ? '\$79.99/yr' : '\$9.99/mo');
     final isHighlighted = widget.highlightTier != PremiumTier.essentials;
 
     return _TierCard(

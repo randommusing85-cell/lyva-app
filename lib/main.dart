@@ -47,7 +47,7 @@ void main() async {
   // Initialize RevenueCat for in-app subscriptions
   await PremiumService.initRevenueCat(
     apiKey: Platform.isIOS
-        ? 'appl_YOUR_IOS_REVENUECAT_KEY'   // Replace with your iOS key
+        ? 'appl_icVfBrmPmXeRDAIXaAEklUtTArq'
         : 'goog_YOUR_ANDROID_REVENUECAT_KEY', // Replace with your Android key
   );
 

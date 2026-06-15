@@ -9,8 +9,8 @@ import '../models/user_profile.dart';
 /// Subscription tier
 enum PremiumTier {
   none,       // No subscription
-  essentials, // $4.99/mo or $29.99/yr
-  premium,    // $9.99/mo or $49.99/yr
+  essentials, // $4.99/mo or $39.99/yr
+  premium,    // $9.99/mo or $79.99/yr
 }
 
 /// Access type
