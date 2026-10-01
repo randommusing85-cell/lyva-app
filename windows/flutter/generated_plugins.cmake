@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   cloud_firestore
   file_selector_windows
   firebase_core
+  flutter_timezone
   isar_flutter_libs
   share_plus
   url_launcher_windows

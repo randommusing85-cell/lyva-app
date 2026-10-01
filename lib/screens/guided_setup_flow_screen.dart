@@ -247,12 +247,12 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
         ],
         task: () async {
           return await repo.generateWorkoutTemplate(
+            profile: profile,
             sex: profile.sex,
             level: profile.level,
             equipment: profile.equipment,
             daysPerWeek: profile.trainingDaysPerWeek,
             sessionDurationMin: 60,
-            constraints: 'none',
           );
         },
       );

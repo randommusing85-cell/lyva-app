@@ -196,21 +196,16 @@ class PremiumService {
         return PremiumAccessStatus.subscribed(tier);
       }
     } catch (_) {
-      // Offline or SDK not configured — fall through to local
+      // Only the SDK may cache paid access; a local flag is not an entitlement.
     }
 
     // 2. Fall back to local trial/profile check
     return getAccessStatus(profile);
   }
 
-  /// Synchronous access status check (local only, for backward compat)
+  /// Local trial only. Paid access must come from RevenueCat.
   PremiumAccessStatus getAccessStatus(UserProfile? profile) {
     if (profile == null) return PremiumAccessStatus.none;
-    if (profile.isPremium) {
-      // Cached subscription tier
-      final tier = _tierFromString(profile.premiumTier);
-      return PremiumAccessStatus.subscribed(tier);
-    }
 
     final trialStart = profile.premiumTrialStart;
     if (trialStart == null) return PremiumAccessStatus.none;
@@ -220,12 +215,6 @@ class PremiumService {
 
     if (remaining > 0) return PremiumAccessStatus.trial(remaining);
     return PremiumAccessStatus.expired;
-  }
-
-  PremiumTier _tierFromString(String? tierStr) {
-    if (tierStr == 'premium') return PremiumTier.premium;
-    if (tierStr == 'essentials') return PremiumTier.essentials;
-    return PremiumTier.premium; // Default for legacy isPremium = true
   }
 
   // ===== PURCHASE & RESTORE =====
@@ -248,24 +237,6 @@ class PremiumService {
     return info.managementURL;
   }
 
-  // ===== PROMO CODE REDEMPTION =====
-
-  // TODO: Replace with Cloud Function call for server-side validation
-  // e.g. final res = await FirebaseFunctions.instance
-  //   .httpsCallable('redeemPromoCode').call({'code': code});
-  static const Map<String, PremiumTier> _validPromoCodes = {
-    'PRIMEFORM2025': PremiumTier.premium,
-    'KINETICIQ': PremiumTier.premium,
-    'ESSENTIALS': PremiumTier.essentials,
-  };
-
-  /// Validate a promo code and return the tier it unlocks.
-  /// Returns null if the code is invalid.
-  PremiumTier? redeemPromoCode(String code) {
-    final normalized = code.trim().toUpperCase();
-    return _validPromoCodes[normalized];
-  }
-
   // ===== TRIAL =====
 
   /// Get trial days remaining (null if no trial, 0 if expired)
@@ -279,7 +250,6 @@ class PremiumService {
 
   /// Check if trial has expired
   bool isTrialExpired(UserProfile profile) {
-    if (profile.isPremium) return false;
     final trialStart = profile.premiumTrialStart;
     if (trialStart == null) return false;
     return DateTime.now().difference(trialStart).inDays >= trialDurationDays;

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user_profile.dart';
 import '../state/providers.dart';
-import '../services/analytics_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/workout_day_scheduler.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -172,8 +172,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _saving = true);
 
     try {
-      final profile = UserProfile()
-        ..id = _originalProfile!.id
+      final changedFields = _getChangedFields();
+      final repo = ref.read(userProfileRepoProvider);
+      final current = await repo.getProfile();
+      if (current == null) throw StateError('Profile no longer exists');
+      final profile = current
         ..age = int.parse(_ageCtrl.text.trim())
         ..sex = _sex
         ..heightCm = int.parse(_heightCtrl.text.trim())
@@ -183,13 +186,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ..equipment = _equipment
         ..trainingDaysPerWeek = _trainingDays
         ..scheduledDaysList = _scheduledDays // NEW: Save scheduled days
-        ..createdAt = _originalProfile!.createdAt
         ..updatedAt = DateTime.now()
         // Cycle tracking
         ..trackCycle = _trackCycle
         ..lastPeriodDate = _lastPeriodDate
         ..cycleLength = _cycleLength
-        ..periodDuration = _originalProfile!.periodDuration
         // Post-partum
         ..postPartumStatus = _postPartumStatus
         ..deliveryDate = _deliveryDate
@@ -197,17 +198,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ..checkDiastasis = _checkDiastasis
         ..deliveryType = _deliveryType;
 
-      final repo = ref.read(userProfileRepoProvider);
       await repo.saveProfile(profile);
+      ref.invalidate(userProfileProvider);
+      await NotificationService().setupNotifications(profile);
 
       // Track analytics
-      final analytics = AnalyticsService();
+      final analytics = ref.read(analyticsProvider);
       await analytics.logProfileUpdated(
-        fieldsChanged: _getChangedFields(),
+        fieldsChanged: changedFields,
       );
-
-      // Refresh provider
-      ref.invalidate(userProfileProvider);
 
       if (!mounted) return;
 

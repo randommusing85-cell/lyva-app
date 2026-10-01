@@ -1,3 +1,4 @@
+import '../widgets/premium_gate.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -22,6 +23,8 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
   bool _analyzing = false;
 
   Future<void> _analyzePhoto(ProgressPhoto photo) async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.progressPhotos)) return;
+    if (!mounted) return;
     // Check usage cap before analyzing
     final profile = await ref.read(userProfileProvider.future);
     if (profile != null) {

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/providers.dart';
 import '../services/analytics_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/workout_day_scheduler.dart';
 import '../theme/app_theme.dart';
 import '../services/premium_service.dart';
@@ -50,6 +50,7 @@ class SettingsScreen extends ConsumerWidget {
                         profile.updatedAt = DateTime.now();
                         await repo.saveProfile(profile);
                         ref.invalidate(userProfileProvider);
+                        await NotificationService().setupNotifications(profile);
 
                         if (context.mounted) {
                           Navigator.pop(ctx);
@@ -304,95 +305,6 @@ class SettingsScreen extends ConsumerWidget {
       default:
         return level;
     }
-  }
-
-  static void showRedeemCodeDialog(BuildContext context, WidgetRef ref) {
-    final codeController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Enter Code'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enter a promo or gift code to unlock premium features.',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: codeController,
-              textCapitalization: TextCapitalization.characters,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
-                UpperCaseTextFormatter(),
-              ],
-              decoration: InputDecoration(
-                hintText: 'e.g. PRIMEFORM2025',
-                prefixIcon: const Icon(Icons.card_giftcard_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final code = codeController.text.trim();
-              if (code.isEmpty) return;
-
-              final service = PremiumService();
-              final tier = service.redeemPromoCode(code);
-
-              if (tier != null) {
-                final tierName =
-                    tier == PremiumTier.premium ? 'premium' : 'essentials';
-                final repo = ref.read(userProfileRepoProvider);
-                await repo.updatePremiumTier(tierName);
-                ref.invalidate(premiumAccessProvider);
-                ref.invalidate(userProfileProvider);
-
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${tierName[0].toUpperCase()}${tierName.substring(1)} unlocked!',
-                      ),
-                      backgroundColor: AppColors.primary,
-                    ),
-                  );
-                }
-              } else {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Invalid code. Please check and try again.'),
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Redeem'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showFullDisclaimerDialog(BuildContext context) {
@@ -1111,13 +1023,6 @@ class _PremiumSection extends ConsumerWidget {
           },
         ),
 
-        _SettingsTile(
-          icon: Icons.card_giftcard_outlined,
-          title: 'Enter Code',
-          subtitle: 'Redeem a promo or gift code',
-          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
-        ),
-
         const SizedBox(height: 8),
 
         // Show navigable tiles for features user CAN access
@@ -1194,12 +1099,6 @@ class _PremiumSection extends ConsumerWidget {
         // All feature tiles during trial (trial = all access)
         ..._buildAllFeatureTiles(context),
 
-        _SettingsTile(
-          icon: Icons.card_giftcard_outlined,
-          title: 'Enter Code',
-          subtitle: 'Redeem a promo or gift code',
-          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
-        ),
       ],
     );
   }
@@ -1291,12 +1190,6 @@ class _PremiumSection extends ConsumerWidget {
         ),
 
         const SizedBox(height: 12),
-        _SettingsTile(
-          icon: Icons.card_giftcard_outlined,
-          title: 'Enter Code',
-          subtitle: 'Redeem a promo or gift code',
-          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
-        ),
       ],
     );
   }
@@ -1400,6 +1293,7 @@ class _HealthPermissionTile extends ConsumerStatefulWidget {
 
 class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
   bool? _authorized;
+  bool _checkingAuthorization = true;
 
   @override
   void initState() {
@@ -1410,14 +1304,20 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
   Future<void> _checkAuth() async {
     final service = ref.read(stepTrackingServiceProvider);
     final auth = await service.isAuthorized();
-    if (mounted) setState(() => _authorized = auth);
+    if (mounted) {
+      setState(() {
+        _authorized = auth;
+        _checkingAuthorization = false;
+      });
+    }
   }
 
   Future<void> _requestPermission() async {
     final service = ref.read(stepTrackingServiceProvider);
     final granted = await service.requestPermissions();
     if (mounted) {
-      setState(() => _authorized = granted);
+      await _checkAuth();
+      if (!mounted) return;
       if (granted) {
         ref.invalidate(todayStepsProvider);
         ref.invalidate(weeklyStepsProvider);
@@ -1425,7 +1325,7 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(granted
-              ? 'Health data access granted'
+              ? 'Health request completed. Manage access in device settings.'
               : 'Permission denied — you can enable it in device settings'),
           backgroundColor: granted ? AppColors.primary : AppColors.error,
         ),
@@ -1436,9 +1336,11 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtitle = _authorized == null
+    final subtitle = _checkingAuthorization
         ? 'Checking...'
-        : _authorized!
+        : _authorized == null
+            ? 'Manage access in Health settings'
+            : _authorized!
             ? 'Connected'
             : 'Not connected';
 
@@ -1478,20 +1380,6 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-    );
-  }
-}
-
-/// Text input formatter that converts input to uppercase
-class UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return TextEditingValue(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
     );
   }
 }
