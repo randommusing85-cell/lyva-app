@@ -285,7 +285,7 @@ final stepTrackingServiceProvider = Provider<StepTrackingService>(
 /// Falls back to 0 if not authorized.
 final todayStepsProvider = FutureProvider.autoDispose<int>((ref) async {
   final service = ref.read(stepTrackingServiceProvider);
-  final authorized = await service.isAuthorized();
+  final authorized = await service.canReadSteps();
   if (!authorized) return 0;
   return service.getTodaySteps();
 });
@@ -293,7 +293,7 @@ final todayStepsProvider = FutureProvider.autoDispose<int>((ref) async {
 /// Last 7 days of step data for the trend chart.
 final weeklyStepsProvider = FutureProvider.autoDispose<Map<DateTime, int>>((ref) async {
   final service = ref.read(stepTrackingServiceProvider);
-  final authorized = await service.isAuthorized();
+  final authorized = await service.canReadSteps();
   if (!authorized) return {};
   return service.getWeeklySteps();
 });

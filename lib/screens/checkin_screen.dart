@@ -54,7 +54,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   Future<void> _autoFillSteps() async {
     try {
       final service = ref.read(stepTrackingServiceProvider);
-      final authorized = await service.isAuthorized();
+      final authorized = await service.canReadSteps();
       if (!authorized) return;
       final steps = await service.getTodaySteps();
       if (mounted && _stepsCtrl.text.isEmpty && steps > 0) {

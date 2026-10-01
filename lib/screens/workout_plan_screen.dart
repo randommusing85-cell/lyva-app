@@ -211,13 +211,17 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
                                   'Balancing muscle groups...',
                                 ],
                                 task: () async {
+                                  final profile = await ref.read(userProfileProvider.future);
+                                  if (profile == null) {
+                                    throw StateError('Profile not found');
+                                  }
                                   return await repo.generateWorkoutTemplate(
+                                    profile: profile,
                                     sex: sex,
                                     level: level,
                                     equipment: equipment,
                                     daysPerWeek: daysPerWeek,
                                     sessionDurationMin: 60,
-                                    constraints: 'none',
                                   );
                                 },
                               );

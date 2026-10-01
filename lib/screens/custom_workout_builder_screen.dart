@@ -758,6 +758,8 @@ class _CustomWorkoutBuilderScreenState
   }
 
   Future<void> _saveTemplate() async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.customWorkouts)) return;
+    if (!mounted) return;
     setState(() => _saving = true);
 
     try {

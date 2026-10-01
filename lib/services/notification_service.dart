@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 
 import '../models/user_profile.dart';
@@ -22,6 +23,7 @@ class NotificationService {
 
     // Initialize timezone
     tz_data.initializeTimeZones();
+    await _configureLocalTimezone();
 
     // Android settings
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -117,8 +119,8 @@ class NotificationService {
     required int minute,
     required List<int> daysOfWeek, // 1 = Monday, 7 = Sunday
   }) async {
-    // Cancel existing workout reminders (IDs 10-16 for each day)
-    for (int i = 10; i <= 16; i++) {
+    // Cancel existing workout reminders (IDs 11-17, plus legacy ID 10)
+    for (int i = 10; i <= 17; i++) {
       await _notifications.cancel(i);
     }
 
@@ -281,8 +283,15 @@ class NotificationService {
     await _notifications.cancel(id);
   }
 
+  Future<void> _configureLocalTimezone() async {
+    final timezone = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timezone.identifier));
+  }
+
   /// Setup all notifications based on user profile
   Future<void> setupNotifications(UserProfile profile) async {
+    await init();
+    await _configureLocalTimezone();
     if (profile.notifyCheckIn) {
       await scheduleCheckInReminder(
         hour: profile.reminderHour,
@@ -293,19 +302,17 @@ class NotificationService {
     }
 
     if (profile.notifyWorkout) {
-      // For now, schedule for all training days
-      // You could make this smarter by checking the actual workout schedule
-      final workoutDays = List.generate(
-        profile.trainingDaysPerWeek,
-        (i) => i + 1, // Monday = 1, etc.
-      );
+      final workoutDays = profile.scheduledDaysList
+          .where((day) => day >= DateTime.monday && day <= DateTime.sunday)
+          .toSet()
+          .toList();
       await scheduleWorkoutReminder(
         hour: profile.reminderHour,
         minute: profile.reminderMinute,
         daysOfWeek: workoutDays,
       );
     } else {
-      for (int i = 10; i <= 16; i++) {
+      for (int i = 10; i <= 17; i++) {
         await cancel(i);
       }
     }

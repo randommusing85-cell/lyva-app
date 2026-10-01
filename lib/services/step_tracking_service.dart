@@ -1,7 +1,10 @@
 import 'package:health/health.dart';
+import 'package:flutter/foundation.dart';
 
 class StepTrackingService {
-  final Health _health = Health();
+  StepTrackingService({Health? health}) : _health = health ?? Health();
+
+  final Health _health;
   bool _configured = false;
 
   static const _types = [HealthDataType.STEPS];
@@ -27,14 +30,22 @@ class StepTrackingService {
   }
 
   /// Check if we have authorization to read steps.
-  Future<bool> isAuthorized() async {
+  Future<bool?> isAuthorized() async {
     try {
       await _ensureConfigured();
       final result = await _health.hasPermissions(_types, permissions: _permissions);
-      return result ?? false;
+      return result;
     } catch (_) {
       return false;
     }
+  }
+
+  /// iOS deliberately hides read permission status. Attempt a read and let
+  /// HealthKit return only the data the user has allowed.
+  Future<bool> canReadSteps() async {
+    final authorized = await isAuthorized();
+    return authorized == true ||
+        (authorized == null && defaultTargetPlatform == TargetPlatform.iOS);
   }
 
   /// Get total steps for today (midnight to now).

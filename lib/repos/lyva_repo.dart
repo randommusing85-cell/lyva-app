@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../utils/workout_constraints.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:isar/isar.dart';
@@ -322,6 +323,7 @@ class LyvaRepo {
    * ========================= */
 
   Future<Map<String, dynamic>> generateWorkoutTemplate({
+    required UserProfile profile,
     required String sex,
     required String level,
     required String equipment,
@@ -333,16 +335,11 @@ class LyvaRepo {
     final callable =
         FirebaseFunctions.instance.httpsCallable('generateWorkoutTemplate');
 
-    // Build constraints string including injuries
-    String finalConstraints = constraints ?? 'none';
-    if (injuries != null && injuries.isNotEmpty) {
-      final injuryText = injuries.map((i) => i.replaceAll('_', ' ')).join(', ');
-      if (finalConstraints == 'none') {
-        finalConstraints = 'User has injuries/limitations: $injuryText. Avoid exercises that aggravate these areas and provide safe alternatives.';
-      } else {
-        finalConstraints += ' Additionally, user has injuries/limitations: $injuryText. Avoid exercises that aggravate these areas.';
-      }
-    }
+    final finalConstraints = WorkoutConstraints.fromProfile(
+      profile,
+      additionalConstraints: constraints,
+      additionalInjuries: injuries,
+    );
 
     final res = await callable.call({
       'sex': sex,

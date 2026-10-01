@@ -25,6 +25,8 @@ class _ProgressPhotosScreenState extends ConsumerState<ProgressPhotosScreen> {
   bool _capturing = false;
 
   Future<void> _addPhoto(ImageSource source) async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.progressPhotos)) return;
+    if (!mounted) return;
     if (_capturing) return;
     setState(() => _capturing = true);
 

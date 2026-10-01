@@ -46,6 +46,8 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
   }
 
   Future<void> _sendMessage(String text) async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.aiCoaching)) return;
+    if (!mounted) return;
     if (text.trim().isEmpty || _sending) return;
 
     // Check usage cap before sending

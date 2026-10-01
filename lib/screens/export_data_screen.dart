@@ -239,6 +239,8 @@ class _ExportDataScreenState extends ConsumerState<ExportDataScreen> {
       (_includeCheckIns || _includeMeals || _includeWorkouts);
 
   Future<void> _handleExport() async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.exportData)) return;
+    if (!mounted) return;
     setState(() => _exporting = true);
 
     try {

@@ -32,6 +32,8 @@ class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
   ];
 
   Future<void> _generatePrediction() async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.cyclePredictions)) return;
+    if (!mounted) return;
     setState(() => _predicting = true);
 
     try {

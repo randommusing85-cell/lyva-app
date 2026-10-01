@@ -6,6 +6,29 @@ import '../services/premium_service.dart';
 import '../services/analytics_service.dart';
 import '../state/providers.dart';
 
+/// Recheck at the action boundary, including actions outside a gated body.
+Future<bool> requirePremiumAccess(
+  BuildContext context,
+  WidgetRef ref,
+  PremiumFeature feature,
+) async {
+  try {
+    final profile = await ref.read(userProfileProvider.future);
+    if (!context.mounted) return false;
+    final access = await ref.read(premiumServiceProvider).getAccessStatusAsync(profile);
+    if (!context.mounted) return false;
+    if (access.canAccessFeature(feature)) return true;
+    await Navigator.pushNamed(context, '/paywall');
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to verify access. Please try again.')),
+      );
+    }
+  }
+  return false;
+}
+
 /// A widget that gates premium content behind trial/subscription with tier awareness
 class PremiumGate extends ConsumerWidget {
   final PremiumFeature feature;
@@ -81,8 +104,19 @@ class PremiumGate extends ConsumerWidget {
           onTap: () => Navigator.pushNamed(context, '/paywall'),
         );
       },
-      loading: () => child,
-      error: (_, __) => child,
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Unable to verify access. Please try again.'),
+            TextButton(
+              onPressed: () => ref.invalidate(premiumAccessProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
