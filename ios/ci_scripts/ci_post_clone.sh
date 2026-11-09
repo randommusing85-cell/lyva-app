@@ -48,7 +48,11 @@ echo "CocoaPods Ruby: $LYVA_CI_RUBY ($RUBY_ARCH); host: $(uname -m)"
   export ARCHFLAGS="-arch $RUBY_ARCH"
   export CFLAGS="-arch $RUBY_ARCH" CXXFLAGS="-arch $RUBY_ARCH"
   export LDFLAGS="-arch $RUBY_ARCH"
-  "$LYVA_CI_RUBY" -S gem install cocoapods --version 1.16.2 --no-document
+  # mkmf reads extconf arguments/RbConfig, not the environment CFLAGS above.
+  # RubyGems forwards these build arguments to native dependency extensions.
+  "$LYVA_CI_RUBY" -S gem install cocoapods --version 1.16.2 --no-document -- \
+    --with-cflags="-arch $RUBY_ARCH" --with-cxxflags="-arch $RUBY_ARCH" \
+    --with-ldflags="-arch $RUBY_ARCH"
 )
 # Fail here, before Flutter/build work, if any native dependency cannot load.
 "$LYVA_CI_RUBY" -r rubygems -e 'gem "cocoapods", "=1.16.2"; require "bigdecimal"; require "nkf"; require "ffi"; require "cocoapods"; puts "CocoaPods native extensions loaded successfully"'

@@ -70,3 +70,12 @@ all native gem compilation (including bigdecimal and nkf) in an isolated subshel
 It explicitly loads bigdecimal, nkf, ffi and CocoaPods with the same selected Ruby
 that the `pod` wrapper uses. Compiler flags do not leak into Flutter/iOS builds.
 This corrects the observed mismatch; success still requires a fresh cloud run.
+
+Build 16 showed environment flags alone do not override mkmf's RbConfig defaults.
+The next revision passes explicit `--with-cflags`, `--with-cxxflags` and
+`--with-ldflags` extconf arguments through RubyGems to native dependencies.
+A real isolated C extension was compiled and loaded with local arm64 Ruby 4.0.0;
+its generated Makefile and compiler/linker commands contained the explicit flags.
+The environment-only control did not adopt the supplied CFLAGS. This verifies
+mkmf argument handling locally, not cloud x86_64 Ruby 3.4 compatibility; the next
+cloud run must verify that separately.
