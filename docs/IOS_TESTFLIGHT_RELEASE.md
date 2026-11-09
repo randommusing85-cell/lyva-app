@@ -41,3 +41,20 @@ Choose an authorized signing route: dedicated Lyva Xcode Cloud configuration (ve
 7. No App Store review submission, public release, tester invites or production deployment is authorized by this preparation.
 
 Official account: https://appstoreconnect.apple.com/apps/6763887116
+
+
+## Signing preparation update, 2026-11-09
+
+Xcode 26.6 (17F113) is now installed side-by-side at
+`~/Applications/Xcode_26.6.app`. Its Apple-signed package and app signature passed
+verification; first-launch status passed. Global Xcode 27 selection is unchanged.
+Use `DEVELOPER_DIR="$HOME/Applications/Xcode_26.6.app/Contents/Developer"`.
+
+The old Xcode-managed App Store profile referenced a different signing certificate.
+With explicit user approval, created and installed manual profile
+`Lyva App Store Local 2026-11-09`, UUID
+`2f4b5c12-79b8-4a06-b054-b7fc44dfd178`, expiry 2027-09-01 05:31:03 UTC.
+It matches the existing local distribution identity
+`743100645AA175E182100BE6BCBBCE55A444880F`. No new key/certificate was created,
+exported or revoked; the old profile remains untouched. Existing App ID capabilities
+were retained, not modified. The script pins the new UUID.

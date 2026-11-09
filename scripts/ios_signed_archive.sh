@@ -16,7 +16,7 @@ NEXT="$1"; PREVIOUS="$2"; MODE="${3:-archive}"
 [[ "$(xcodebuild -version | head -1)" == 'Xcode 26.6' ]] || fail 'Select validated Xcode 26.6 via DEVELOPER_DIR; Xcode 27 conflicts with locked RevenueCat'
 [[ "$(pod --version)" == 1.16.2 ]] || fail 'CocoaPods 1.16.2 required'
 flutter --version | head -1 | grep -q '^Flutter 3.38.9 ' || fail 'Flutter 3.38.9 required'
-PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/9051ec4b-02a2-4fd5-9adf-69eeccabd745.mobileprovision"
+PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/2f4b5c12-79b8-4a06-b054-b7fc44dfd178.mobileprovision"
 [[ -f "$PROFILE" ]] || fail 'Reviewed Lyva App Store profile unavailable; revalidate signing instead of creating credentials automatically'
 IDENTITY="$(python3 - "$PROFILE" <<'PY'
 import datetime,hashlib,plistlib,subprocess,sys
@@ -47,12 +47,12 @@ xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Relea
   -destination 'generic/platform=iOS' -archivePath "$OUT/Runner.xcarchive" \
   -derivedDataPath "$OUT/derived" CODE_SIGN_STYLE=Manual \
   DEVELOPMENT_TEAM=553UWDXG8D CODE_SIGN_IDENTITY="$IDENTITY" \
-  PROVISIONING_PROFILE_SPECIFIER=9051ec4b-02a2-4fd5-9adf-69eeccabd745 archive
+  PROVISIONING_PROFILE_SPECIFIER=2f4b5c12-79b8-4a06-b054-b7fc44dfd178 archive
 # No -allowProvisioningUpdates: must use existing, reviewed signing material.
 python3 - "$OUT/ExportOptions.plist" "$IDENTITY" <<'PY'
 import plistlib,sys
 with open(sys.argv[1],'wb') as f:
- plistlib.dump({'method':'app-store-connect','destination':'export','teamID':'553UWDXG8D','signingStyle':'manual','signingCertificate':sys.argv[2],'provisioningProfiles':{'ai.kineticiq.lyva':'9051ec4b-02a2-4fd5-9adf-69eeccabd745'},'manageAppVersionAndBuildNumber':False,'uploadSymbols':False},f)
+ plistlib.dump({'method':'app-store-connect','destination':'export','teamID':'553UWDXG8D','signingStyle':'manual','signingCertificate':sys.argv[2],'provisioningProfiles':{'ai.kineticiq.lyva':'2f4b5c12-79b8-4a06-b054-b7fc44dfd178'},'manageAppVersionAndBuildNumber':False,'uploadSymbols':False},f)
 PY
 xcodebuild -exportArchive -archivePath "$OUT/Runner.xcarchive" \
   -exportOptionsPlist "$OUT/ExportOptions.plist" -exportPath "$OUT/export"
