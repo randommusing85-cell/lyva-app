@@ -112,7 +112,7 @@ jobs:
       - name: Install locked iOS Pods
         working-directory: ios
         run: pod install --deployment
-      - name: Build Apple Silicon simulator workspace
+      - name: Build compatible x86_64 simulator workspace
         shell: bash
         run: |
           set -o pipefail
@@ -120,7 +120,7 @@ jobs:
             -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/lyva-derived" \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO \
+            ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO build 2>&1 | tee "$RUNNER_TEMP/lyva-ios-build.log"
       - name: Preserve iOS build diagnostics
         if: always()
@@ -137,7 +137,7 @@ jobs:
         run: ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/lyva-derived/Build/Products/Debug-iphonesimulator/Runner.app" "$RUNNER_TEMP/lyva-ios-simulator.zip"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: lyva-ios-simulator-arm64
+          name: lyva-ios-simulator-x86_64
           path: ${{ runner.temp }}/lyva-ios-simulator.zip
           if-no-files-found: error
           retention-days: 7

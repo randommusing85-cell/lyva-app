@@ -26,7 +26,7 @@ Do not commit SDK paths, signing keys, device data, caches, or build outputs.
 
 ## Build-only workflow
 `.github/workflows/lyva-build.yml` runs on pushes only to `integration/cross-platform-2026-11-09` and uses immutable Action SHAs.
-It runs tests/analysis, builds a development Android APK and an Apple Silicon (arm64) iOS simulator ZIP,
+It runs tests/analysis, builds a development Android APK and an x86_64 iOS simulator ZIP,
 and retains artifacts for7days. It has no store-upload, deployment, signing-secret,
 credential-persistence or distribution steps. An iOS simulator ZIP is not an IPA
 and cannot be installed on a physical iPhone.
@@ -50,4 +50,6 @@ adult18+ validation and native launch/sign-in configuration. Cycle estimation co
 is retained internally but not connected to live recommendations; unsafe phase-based
 training advice and expanded aspiration-photo requests were not restored.
 
-Hosted build notes: SDK manager is resolved from the Android SDK root, not assumed on PATH. iOS CI uses locked Pods and an explicit workspace build with a single derived-data directory, unsigned for the arm64 simulator. The first hosted attempt passed checks but failed final Pods_Runner linking; this workflow revision is being validated.
+Hosted build notes: SDK manager is resolved from the Android SDK root, not assumed on PATH. iOS CI uses locked Pods and an explicit workspace build with a single derived-data directory, unsigned for the x86_64 simulator. The first hosted attempt passed checks but failed final Pods_Runner linking; this workflow revision is being validated.
+
+The current Google ML Kit Pods explicitly exclude arm64 simulator builds. CI therefore cross-compiles x86_64 simulator artifacts on the Mac runner. This is not an arm64-native simulator build or a physical-device IPA. Running this simulator artifact on Apple Silicon requires a compatible Rosetta simulator setup; device builds/signing are a separate future step.
