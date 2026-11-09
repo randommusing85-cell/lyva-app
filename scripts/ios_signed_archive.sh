@@ -47,7 +47,8 @@ xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Relea
   -destination 'generic/platform=iOS' -archivePath "$OUT/Runner.xcarchive" \
   -derivedDataPath "$OUT/derived" CODE_SIGN_STYLE=Manual \
   DEVELOPMENT_TEAM=553UWDXG8D CODE_SIGN_IDENTITY="$IDENTITY" \
-  PROVISIONING_PROFILE_SPECIFIER=2f4b5c12-79b8-4a06-b054-b7fc44dfd178 archive
+  'PROVISIONING_PROFILE_SPECIFIER=$(LYVA_PROFILE_$(PRODUCT_NAME))' \
+  LYVA_PROFILE_Runner=2f4b5c12-79b8-4a06-b054-b7fc44dfd178 archive
 # No -allowProvisioningUpdates: must use existing, reviewed signing material.
 python3 - "$OUT/ExportOptions.plist" "$IDENTITY" <<'PY'
 import plistlib,sys
