@@ -81,7 +81,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ),
       );
     } else {
-      NotificationService().setupNotifications(profile);
+      NotificationService().setupNotifications(profile).catchError((Object _) => false);
 
       // Check if monthly usage counters need a reset
       if (PremiumService.checkAndResetUsageIfNeeded(profile)) {

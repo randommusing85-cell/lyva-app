@@ -19,6 +19,15 @@ class WorkoutSessionDoc {
   // Notes/feedback from the workout
   String? notes;
 
+  /// How hard the completed session felt: 1 (easy) to 5 (maximal).
+  int? perceivedExertion;
+
   // optional, but handy
-  String? planId; // you can ignore for now
+  String? planId; // template identity plus immutable prescription revision
+
+  // Null on legacy sessions. Never infer historical prescriptions from today's plan.
+  String? templateSnapshotJson;
+
+  // Versioned optional guided set progress; null for existing sessions.
+  String? progressJson;
 }

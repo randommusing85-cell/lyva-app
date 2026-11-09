@@ -19,6 +19,9 @@ class MealLog {
   
   /// Optional meal description
   String? description;
+
+  /// Optional frozen serving basis; null means weight/portions were not recorded.
+  String? portionJson;
   
   /// Calculated calories (for display)
   int get calories => (proteinG * 4) + (carbsG * 4) + (fatG * 9);

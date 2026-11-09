@@ -1,4 +1,5 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import '../widgets/personalization_boundary.dart';
+import '../services/safety_callable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,19 +8,22 @@ import '../models/prime_plan.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
 import '../utils/plateau_detector.dart';
+import '../utils/nutrition_adjustment.dart';
 import '../widgets/ai_coach_card.dart';
 import 'nutrition_lock_explanation_screen.dart';
 
-class MyPlanScreen extends ConsumerStatefulWidget {
-  const MyPlanScreen({super.key});
+class _MyPlanScreenContent extends ConsumerStatefulWidget {
+  const _MyPlanScreenContent();
 
   @override
-  ConsumerState<MyPlanScreen> createState() => _MyPlanScreenState();
+  ConsumerState<_MyPlanScreenContent> createState() => _MyPlanScreenState();
 }
 
-class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
+class _MyPlanScreenState extends ConsumerState<_MyPlanScreenContent> {
   bool coachLoading = false;
   Map<String, dynamic>? adjustment;
+  String? adjustmentSourceRevision;
+  DateTime? adjustmentReceivedAt;
   String? coachError;
 
   num _n(dynamic v, num fallback) =>
@@ -89,7 +93,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
       trainingDaysPerWeek: currentPlan.trainingDays,
     );
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPersonalizationDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -156,7 +160,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
   Future<void> _resumeDeficit(PrimePlan currentPlan) async {
     final deficitCalories = currentPlan.preRefeedCalories ?? currentPlan.calories;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPersonalizationDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -222,6 +226,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
     required PrimePlan plan,
     required List<CheckIn> checkIns,
   }) async {
+    final requestedRevision = nutritionPlanRevision(plan);
     // Track analytics
     final analytics = ref.read(analyticsProvider);
     await analytics.logAiCoachQueried(
@@ -232,13 +237,15 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
     setState(() {
       coachLoading = true;
       adjustment = null;
+      adjustmentSourceRevision = null;
+      adjustmentReceivedAt = null;
       coachError = null;
     });
 
     try {
       final profile = await ref.read(userProfileProvider.future);
 
-      final callable = FirebaseFunctions.instance.httpsCallable(
+      final callable = SafetyCallable(
         'generateAdjustment',
       );
 
@@ -263,10 +270,13 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
         "trends": buildTrendPayload(checkIns),
       });
 
+      if (!mounted) return;
       final data = Map<String, dynamic>.from(res.data as Map);
 
       if (data["ok"] == true) {
         setState(() {
+          adjustmentSourceRevision = requestedRevision;
+          adjustmentReceivedAt = DateTime.now();
           adjustment = Map<String, dynamic>.from(
             data["adjustment"] as Map? ?? {},
           );
@@ -277,7 +287,7 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
         });
       }
     } catch (e) {
-      setState(() => coachError = "Error: $e");
+      if (mounted) setState(() => coachError = "Error: $e");
     } finally {
       if (mounted) setState(() => coachLoading = false);
     }
@@ -298,27 +308,40 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
       return;
     }
 
+    final reviewedRevision = adjustmentSourceRevision;
+    if (reviewedRevision == null || reviewedRevision != nutritionPlanRevision(current)) {
+      setState(() { coachError = 'This proposal does not match the current plan. Review a fresh proposal before applying.'; });
+      return;
+    }
+
     final calorieDelta = _n(adj["calorie_delta"], 0).round();
     final stepDelta = _n(adj["step_delta"], 0).round();
 
-    final newCalories = (current.calories + calorieDelta).clamp(1200, 4500);
-    final newStepTarget = (current.stepTarget + stepDelta).clamp(0, 50000);
+    final updated = adjustedNutritionPlan(
+      current: current,
+      calorieDelta: calorieDelta,
+      stepDelta: stepDelta,
+      createdAt: DateTime.now(),
+    );
+    final newCalories = updated.calories;
+    final newStepTarget = updated.stepTarget;
+    final newCarbs = updated.carbsG;
+    final appliedCalories = newCalories - current.calories;
+    final appliedSteps = newStepTarget - current.stepTarget;
 
-    // Keep protein/fat stable, push calorie delta mostly into carbs (simple + safe)
-    final deltaCarbs = (calorieDelta / 4).round();
-    final newCarbs = (current.carbsG + deltaCarbs).clamp(0, 9999);
-
-    final confirm = await showDialog<bool>(
+    final confirm = await showPersonalizationDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Apply adjustment?'),
         content: Text(
-          'This will save a NEW plan version.\n\n'
+          'This will save a NEW plan version.\n'
+          'Proposal received: ${adjustmentReceivedAt?.toLocal().toString() ?? 'Unknown'}\n'
+          'A future review date is not recorded. This preview is not independent clinical validation.\n\n'
           'Calories: ${current.calories} -> $newCalories '
-          '(${calorieDelta >= 0 ? "+" : ""}$calorieDelta)\n'
+          '(${appliedCalories >= 0 ? "+" : ""}$appliedCalories)\n'
           'Carbs: ${current.carbsG} g -> $newCarbs g\n'
           'Step target: ${current.stepTarget} -> $newStepTarget '
-          '(${stepDelta >= 0 ? "+" : ""}$stepDelta)\n',
+          '(${appliedSteps >= 0 ? "+" : ""}$appliedSteps)\n',
         ),
         actions: [
           TextButton(
@@ -333,20 +356,19 @@ class _MyPlanScreenState extends ConsumerState<MyPlanScreen> {
       ),
     );
 
-    if (confirm != true) return;
-
-    final updated = PrimePlan()
-      ..createdAt = DateTime.now()
-      ..planName = '${current.planName} (Adjusted)'
-      ..trainingDays = current.trainingDays
-      ..calories = newCalories
-      ..proteinG = current.proteinG
-      ..carbsG = newCarbs
-      ..fatG = current.fatG
-      ..stepTarget = newStepTarget;
+    if (confirm != true || !mounted) return;
 
     final repo = ref.read(lyvaRepoProvider);
-    await repo.upsertPlan(updated);
+    try {
+      await repo.applyReviewedNutritionAdjustment(expectedRevision: reviewedRevision,
+        calorieDelta: calorieDelta, stepDelta: stepDelta);
+    } catch (_) {
+      if (!mounted) return;
+      ref.invalidate(activePlanProvider);
+      setState(() { coachError = 'Adjustment was not applied. The plan changed or could not be saved. Reload and review again.'; });
+      return;
+    }
+    if (!mounted) return;
 
     // Track analytics
     final analytics = ref.read(analyticsProvider);
@@ -677,8 +699,10 @@ Map<String, dynamic> buildTrendPayload(List<CheckIn> items) {
   final last7 = last14.take(7).toList();
   final prev7 = last14.skip(7).take(7).toList();
 
-  double avg(Iterable<double> xs) =>
-      xs.isEmpty ? 0 : xs.reduce((a, b) => a + b) / xs.length;
+  double? avg(Iterable<double?> values) {
+    final xs = values.whereType<double>().where((v) => v.isFinite).toList();
+    return xs.isEmpty ? null : xs.reduce((a, b) => a + b) / xs.length;
+  }
 
   return {
     "counts": {
@@ -695,8 +719,8 @@ Map<String, dynamic> buildTrendPayload(List<CheckIn> items) {
       "prev7_avg": avg(prev7.map((c) => c.waistCm)),
     },
     "steps": {
-      "last7_avg": avg(last7.map((c) => c.stepsToday.toDouble())),
-      "prev7_avg": avg(prev7.map((c) => c.stepsToday.toDouble())),
+      "last7_avg": avg(last7.map((c) => c.stepsToday?.toDouble())),
+      "prev7_avg": avg(prev7.map((c) => c.stepsToday?.toDouble())),
     },
   };
 }
@@ -726,4 +750,9 @@ class _StatCard extends StatelessWidget {
       ),
     );
   }
+}
+class MyPlanScreen extends StatelessWidget {
+  const MyPlanScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _MyPlanScreenContent());
 }

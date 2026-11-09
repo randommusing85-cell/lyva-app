@@ -1,4 +1,6 @@
+import '../widgets/personalization_boundary.dart';
 import 'dart:convert';
+import '../models/workout_exercise.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,15 +12,15 @@ import '../state/providers.dart';
 import '../widgets/premium_gate.dart';
 import '../services/premium_service.dart';
 
-class SavedTemplatesScreen extends ConsumerStatefulWidget {
-  const SavedTemplatesScreen({super.key});
+class _SavedTemplatesScreenContent extends ConsumerStatefulWidget {
+  const _SavedTemplatesScreenContent();
 
   @override
-  ConsumerState<SavedTemplatesScreen> createState() =>
+  ConsumerState<_SavedTemplatesScreenContent> createState() =>
       _SavedTemplatesScreenState();
 }
 
-class _SavedTemplatesScreenState extends ConsumerState<SavedTemplatesScreen> {
+class _SavedTemplatesScreenState extends ConsumerState<_SavedTemplatesScreenContent> {
   @override
   Widget build(BuildContext context) {
     final templatesAsync = ref.watch(customTemplatesProvider);
@@ -159,7 +161,7 @@ class _SavedTemplatesScreenState extends ConsumerState<SavedTemplatesScreen> {
             child: const Icon(Icons.delete_outline, color: AppColors.error),
           ),
           confirmDismiss: (_) async {
-            return await showDialog<bool>(
+            return await showPersonalizationDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
                 title: const Text('Delete Workout Plan'),
@@ -290,7 +292,7 @@ class _SavedTemplatesScreenState extends ConsumerState<SavedTemplatesScreen> {
   }
 
   void _showTemplateDetail(WorkoutTemplateDoc template) {
-    showModalBottomSheet(
+    showPersonalizationBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -352,9 +354,9 @@ class _TemplateDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     Map<String, dynamic> data;
     try {
-      data = Map<String, dynamic>.from(
+      data = WorkoutExercise.normalizeTemplate(Map<String, dynamic>.from(
         jsonDecode(template.json) as Map,
-      );
+      ));
     } catch (_) {
       data = {};
     }
@@ -408,7 +410,7 @@ class _TemplateDetailSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Day ${i + 1}: ${day['dayName'] ?? ''}',
+                          'Day ${i + 1}: ${day['title'] ?? ''}',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -435,7 +437,7 @@ class _TemplateDetailSheet extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '${e['sets']} x ${e['reps']}',
+                                  '${e['workingSets']} x ${e['repRange']['min']}-${e['repRange']['max']}',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: AppColors.textSecondary,
@@ -503,4 +505,10 @@ class _InfoChip extends StatelessWidget {
       ],
     );
   }
+}
+
+class SavedTemplatesScreen extends StatelessWidget {
+  const SavedTemplatesScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _SavedTemplatesScreenContent());
 }

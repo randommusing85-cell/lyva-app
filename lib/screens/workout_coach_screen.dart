@@ -1,3 +1,4 @@
+import '../widgets/personalization_boundary.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,14 +11,14 @@ import '../services/analytics_service.dart';
 import '../services/premium_service.dart';
 import '../widgets/premium_gate.dart';
 
-class WorkoutCoachScreen extends ConsumerStatefulWidget {
-  const WorkoutCoachScreen({super.key});
+class _WorkoutCoachScreenContent extends ConsumerStatefulWidget {
+  const _WorkoutCoachScreenContent();
 
   @override
-  ConsumerState<WorkoutCoachScreen> createState() => _WorkoutCoachScreenState();
+  ConsumerState<_WorkoutCoachScreenContent> createState() => _WorkoutCoachScreenState();
 }
 
-class _WorkoutCoachScreenState extends ConsumerState<WorkoutCoachScreen> {
+class _WorkoutCoachScreenState extends ConsumerState<_WorkoutCoachScreenContent> {
   // ===== WORKOUT PLAN LOCK METHODS =====
   bool _canRegeneratePlan(WorkoutTemplateDoc template) {
     final now = DateTime.now();
@@ -52,7 +53,7 @@ class _WorkoutCoachScreenState extends ConsumerState<WorkoutCoachScreen> {
   Future<bool?> _showLockExplanationDialog(WorkoutTemplateDoc template) {
     final daysLeft = _daysUntilRegenerate(template);
 
-    return showDialog<bool>(
+    return showPersonalizationDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -599,4 +600,10 @@ class _TipItem extends StatelessWidget {
       ),
     );
   }
+}
+
+class WorkoutCoachScreen extends StatelessWidget {
+  const WorkoutCoachScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _WorkoutCoachScreenContent());
 }

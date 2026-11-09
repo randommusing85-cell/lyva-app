@@ -8,9 +8,9 @@ class CheckIn {
 
   @Index()
   late DateTime ts;
-  late double weightKg;
-  late double waistCm;
-  late int stepsToday;
+  double? weightKg;
+  double? waistCm;
+  int? stepsToday;
 
   String? note;
 
@@ -19,4 +19,10 @@ class CheckIn {
 
   /// Energy score 1-5 (for cycle prediction integration)
   int? energyScore;
+
+  /// Optional self-reported recovery signals, each scored 1-5.
+  int? sleepScore;
+  int? stressScore;
+  int? sorenessScore;
+  int? hungerScore;
 }

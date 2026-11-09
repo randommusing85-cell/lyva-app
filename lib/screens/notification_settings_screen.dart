@@ -60,13 +60,13 @@ class _NotificationSettingsScreenState
         await repo.saveProfile(profile);
         
         // Update notifications
-        await NotificationService().setupNotifications(profile);
+        final scheduled = await NotificationService().setupNotifications(profile);
         
         ref.invalidate(userProfileProvider);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Notification settings saved ✅')),
+            SnackBar(content: Text(scheduled ? 'Reminder settings saved' : 'Preferences saved. Allow notifications in device settings to receive reminders.')),
           );
           Navigator.pop(context);
         }
@@ -98,6 +98,10 @@ class _NotificationSettingsScreenState
 
   Future<void> _requestPermissions() async {
     final granted = await NotificationService().requestPermissions();
+    if (granted) {
+      final profile = await ref.read(userProfileRepoProvider).getProfile();
+      if (profile != null) await NotificationService().setupNotifications(profile);
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -201,7 +205,7 @@ class _NotificationSettingsScreenState
           if (_showCycleToggle)
             SwitchListTile(
               title: const Text('Cycle Check-in'),
-              subtitle: const Text('Daily tips based on your cycle phase'),
+              subtitle: const Text('Optional record reminders for the next 14 days; refreshed when you open the app'),
               value: _notifyCycle,
               onChanged: (v) => setState(() => _notifyCycle = v),
             ),

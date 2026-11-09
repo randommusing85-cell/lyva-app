@@ -42,13 +42,18 @@ const MealLogSchema = CollectionSchema(
       name: r'mealType',
       type: IsarType.string,
     ),
-    r'proteinG': PropertySchema(
+    r'portionJson': PropertySchema(
       id: 5,
+      name: r'portionJson',
+      type: IsarType.string,
+    ),
+    r'proteinG': PropertySchema(
+      id: 6,
       name: r'proteinG',
       type: IsarType.long,
     ),
     r'ts': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'ts',
       type: IsarType.dateTime,
     )
@@ -94,6 +99,12 @@ int _mealLogEstimateSize(
     }
   }
   bytesCount += 3 + object.mealType.length * 3;
+  {
+    final value = object.portionJson;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -108,8 +119,9 @@ void _mealLogSerialize(
   writer.writeString(offsets[2], object.description);
   writer.writeLong(offsets[3], object.fatG);
   writer.writeString(offsets[4], object.mealType);
-  writer.writeLong(offsets[5], object.proteinG);
-  writer.writeDateTime(offsets[6], object.ts);
+  writer.writeString(offsets[5], object.portionJson);
+  writer.writeLong(offsets[6], object.proteinG);
+  writer.writeDateTime(offsets[7], object.ts);
 }
 
 MealLog _mealLogDeserialize(
@@ -124,8 +136,9 @@ MealLog _mealLogDeserialize(
   object.fatG = reader.readLong(offsets[3]);
   object.id = id;
   object.mealType = reader.readString(offsets[4]);
-  object.proteinG = reader.readLong(offsets[5]);
-  object.ts = reader.readDateTime(offsets[6]);
+  object.portionJson = reader.readStringOrNull(offsets[5]);
+  object.proteinG = reader.readLong(offsets[6]);
+  object.ts = reader.readDateTime(offsets[7]);
   return object;
 }
 
@@ -147,8 +160,10 @@ P _mealLogDeserializeProp<P>(
     case 4:
       return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 6:
+      return (reader.readLong(offset)) as P;
+    case 7:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -827,6 +842,153 @@ extension MealLogQueryFilter
     });
   }
 
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'portionJson',
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'portionJson',
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'portionJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'portionJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'portionJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'portionJson',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'portionJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'portionJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'portionJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'portionJson',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition> portionJsonIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'portionJson',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterFilterCondition>
+      portionJsonIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'portionJson',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<MealLog, MealLog, QAfterFilterCondition> proteinGEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -1001,6 +1163,18 @@ extension MealLogQuerySortBy on QueryBuilder<MealLog, MealLog, QSortBy> {
     });
   }
 
+  QueryBuilder<MealLog, MealLog, QAfterSortBy> sortByPortionJson() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'portionJson', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterSortBy> sortByPortionJsonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'portionJson', Sort.desc);
+    });
+  }
+
   QueryBuilder<MealLog, MealLog, QAfterSortBy> sortByProteinG() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'proteinG', Sort.asc);
@@ -1100,6 +1274,18 @@ extension MealLogQuerySortThenBy
     });
   }
 
+  QueryBuilder<MealLog, MealLog, QAfterSortBy> thenByPortionJson() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'portionJson', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MealLog, MealLog, QAfterSortBy> thenByPortionJsonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'portionJson', Sort.desc);
+    });
+  }
+
   QueryBuilder<MealLog, MealLog, QAfterSortBy> thenByProteinG() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'proteinG', Sort.asc);
@@ -1159,6 +1345,13 @@ extension MealLogQueryWhereDistinct
     });
   }
 
+  QueryBuilder<MealLog, MealLog, QDistinct> distinctByPortionJson(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'portionJson', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<MealLog, MealLog, QDistinct> distinctByProteinG() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'proteinG');
@@ -1207,6 +1400,12 @@ extension MealLogQueryProperty
   QueryBuilder<MealLog, String, QQueryOperations> mealTypeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'mealType');
+    });
+  }
+
+  QueryBuilder<MealLog, String?, QQueryOperations> portionJsonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'portionJson');
     });
   }
 

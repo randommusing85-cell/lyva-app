@@ -1,13 +1,10 @@
+import '../widgets/recorded_week_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../state/providers.dart';
-import '../models/meal_log.dart';
-import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
-import '../widgets/circular_progress_ring.dart';
-import '../models/cycle_prediction.dart';
 import '../services/analytics_service.dart';
 import '../services/premium_service.dart';
 import '../widgets/premium_gate.dart';
@@ -71,10 +68,6 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final checkInsAsync = ref.watch(latestCheckInsStreamProvider);
-    final sessionsAsync = ref.watch(thisWeekSessionsProvider);
-    final profileAsync = ref.watch(userProfileProvider);
-    final todayMealsAsync = ref.watch(todayMealsStreamProvider);
-    final planAsync = ref.watch(activePlanProvider);
 
     final monthYear = DateFormat('MMMM yyyy').format(_selectedDate);
 
@@ -113,49 +106,21 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
 
               const SizedBox(height: 24),
 
-              // Overview section
-              Text(
-                'Overview',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              RecordedWeekCard(anchor: _selectedDate),
               const SizedBox(height: 16),
-
-              // Overview cards grid
-              _OverviewCards(
-                checkInsAsync: checkInsAsync,
-                sessionsAsync: sessionsAsync,
-                profileAsync: profileAsync,
-              ),
-
-              const SizedBox(height: 24),
-
-              // Daily Progress chart
-              _DailyProgressCard(
-                checkInsAsync: checkInsAsync,
-                todayMealsAsync: todayMealsAsync,
-                profileAsync: profileAsync,
-                planAsync: planAsync,
-              ),
-
-              const SizedBox(height: 24),
-
+              ExpansionTile(title: const Text('Optional measurement and step charts'), children: [
               // Weight trend chart
               _WeightChartCard(checkInsAsync: checkInsAsync),
 
               const SizedBox(height: 24),
 
-              // Consistency chart
-              _ConsistencyCard(sessionsAsync: sessionsAsync),
-
-              const SizedBox(height: 24),
-
               // Steps trend chart (7-day)
-              const StepsTrendCard(),
+              StepsTrendCard(anchor: _selectedDate),
 
               const SizedBox(height: 24),
 
+              ]),
+              const SizedBox(height: 16),
               // Cycle prediction summary (when cycle tracking + premium active)
               const _CyclePredictionSummary(),
 
@@ -166,7 +131,7 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
                 feature: PremiumFeature.progressPhotos,
                 icon: Icons.camera_outlined,
                 title: 'Progress Photos',
-                description: 'Upload photos for AI body analysis and achievable celeb comparisons',
+                description: 'View and manage your saved progress photos',
               ),
 
               const SizedBox(height: 12),
@@ -284,411 +249,6 @@ class _WeekCalendar extends StatelessWidget {
   }
 }
 
-/// Overview cards grid
-class _OverviewCards extends StatelessWidget {
-  final AsyncValue<List<dynamic>> checkInsAsync;
-  final AsyncValue<List<dynamic>> sessionsAsync;
-  final AsyncValue<dynamic> profileAsync;
-
-  const _OverviewCards({
-    required this.checkInsAsync,
-    required this.sessionsAsync,
-    required this.profileAsync,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final checkIns = checkInsAsync.valueOrNull ?? [];
-    final sessions = sessionsAsync.valueOrNull ?? [];
-
-    // Calculate stats
-    final totalCalories = _calculateTotalCalories(checkIns);
-    final totalTime = _calculateTotalTime(sessions);
-    final totalExercises = _calculateTotalExercises(sessions);
-    final weightChange = _calculateWeightChange(checkIns);
-
-    return Row(
-      children: [
-        Expanded(
-          child: _OverviewCard(
-            icon: Icons.local_fire_department_outlined,
-            value: totalCalories.toStringAsFixed(0),
-            label: 'Cal\nBurnt',
-            color: AppColors.caloriesRing,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _OverviewCard(
-            icon: Icons.timer_outlined,
-            value: totalTime,
-            label: 'Total\nTime',
-            color: AppColors.stepsRing,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _OverviewCard(
-            icon: Icons.fitness_center,
-            value: totalExercises.toString(),
-            label: 'Exercises',
-            color: AppColors.workoutsRing,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _OverviewCard(
-            icon: Icons.trending_down,
-            value: weightChange,
-            label: 'kg',
-            color: AppColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  double _calculateTotalCalories(List<dynamic> checkIns) {
-    // Estimate based on steps (rough: 0.04 cal per step)
-    if (checkIns.isEmpty) return 0;
-    final totalSteps = checkIns.fold<int>(
-        0, (sum, c) => sum + ((c.stepsToday as int?) ?? 0));
-    return totalSteps * 0.04;
-  }
-
-  String _calculateTotalTime(List<dynamic> sessions) {
-    final completed = sessions.where((s) => s.completed == true).length;
-    final minutes = completed * 45; // Assume 45 min avg
-    final hours = minutes ~/ 60;
-    final mins = minutes % 60;
-    if (hours > 0) {
-      return '${hours}h\n${mins}m';
-    }
-    return '${mins}m';
-  }
-
-  int _calculateTotalExercises(List<dynamic> sessions) {
-    // Estimate 5 exercises per session
-    final completed = sessions.where((s) => s.completed == true).length;
-    return completed * 5;
-  }
-
-  String _calculateWeightChange(List<dynamic> checkIns) {
-    if (checkIns.length < 2) return '0.0';
-    final latest = checkIns.first.weightKg as double;
-    final oldest = checkIns.last.weightKg as double;
-    final change = latest - oldest;
-    final sign = change > 0 ? '+' : '';
-    return '$sign${change.toStringAsFixed(1)}';
-  }
-}
-
-class _OverviewCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-
-  const _OverviewCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Daily Progress donut chart card
-class _DailyProgressCard extends ConsumerWidget {
-  final AsyncValue<List<dynamic>> checkInsAsync;
-  final AsyncValue<List<MealLog>> todayMealsAsync;
-  final AsyncValue<UserProfile?> profileAsync;
-  final AsyncValue<dynamic> planAsync;
-
-  const _DailyProgressCard({
-    required this.checkInsAsync,
-    required this.todayMealsAsync,
-    required this.profileAsync,
-    required this.planAsync,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final checkIns = checkInsAsync.valueOrNull ?? [];
-    final todayMeals = todayMealsAsync.valueOrNull ?? [];
-    final profile = profileAsync.valueOrNull;
-    final plan = planAsync.valueOrNull;
-
-    // Get today's steps from health platform
-    final todaySteps = ref.watch(todayStepsProvider).valueOrNull ?? 0;
-
-    // Get today's calories from logged meals
-    int todayCalories = 0;
-    for (final meal in todayMeals) {
-      todayCalories += meal.calories;
-    }
-
-    // Calculate TDEE if profile available
-    int tdee = 2000; // Default
-    int deficit = 0;
-    String deficitLabel = 'On target';
-    Color deficitColor = AppColors.workoutsRing;
-
-    if (profile != null) {
-      // Use latest weight from check-ins if available, otherwise profile weight
-      double currentWeight = profile.weightKg;
-      if (checkIns.isNotEmpty) {
-        currentWeight = (checkIns.first.weightKg as double?) ?? profile.weightKg;
-      }
-
-      final bmr = calculateBMR(
-        weightKg: currentWeight,
-        heightCm: profile.heightCm,
-        age: profile.age,
-        sex: profile.sex,
-      );
-
-      tdee = calculateTDEE(
-        bmr: bmr,
-        trainingDaysPerWeek: profile.trainingDaysPerWeek,
-      ).round();
-
-      // Calculate deficit/surplus
-      deficit = tdee - todayCalories;
-
-      if (deficit > 200) {
-        deficitLabel = '-${deficit}cal deficit';
-        deficitColor = Colors.green;
-      } else if (deficit < -200) {
-        deficitLabel = '+${deficit.abs()}cal surplus';
-        deficitColor = Colors.orange;
-      } else {
-        deficitLabel = 'On target';
-        deficitColor = AppColors.workoutsRing;
-      }
-    }
-
-    // Get target calories from plan or use TDEE
-    final targetCalories = plan?.calories ?? tdee;
-    final targetSteps = plan?.stepTarget ?? 10000;
-
-    // Calculate progress for deficit ring (inverted - full when on target)
-    final deficitProgress = todayCalories > 0
-        ? (1 - (deficit.abs() / tdee)).clamp(0.0, 1.0)
-        : 0.0;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Daily Progress',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              // TDEE badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'TDEE: $tdee',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              // Progress rings stacked
-              SizedBox(
-                width: 120,
-                height: 120,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircularProgressRing(
-                      progress: (todaySteps / targetSteps).clamp(0.0, 1.0),
-                      size: 120,
-                      strokeWidth: 10,
-                      progressColor: AppColors.stepsRing,
-                      backgroundColor: AppColors.stepsRing.withOpacity(0.2),
-                    ),
-                    CircularProgressRing(
-                      progress: (todayCalories / targetCalories).clamp(0.0, 1.0),
-                      size: 90,
-                      strokeWidth: 10,
-                      progressColor: AppColors.caloriesRing,
-                      backgroundColor: AppColors.caloriesRing.withOpacity(0.2),
-                    ),
-                    CircularProgressRing(
-                      progress: deficitProgress,
-                      size: 60,
-                      strokeWidth: 10,
-                      progressColor: deficitColor,
-                      backgroundColor: deficitColor.withOpacity(0.2),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 24),
-              // Labels
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ProgressLabel(
-                      color: deficitColor,
-                      label: 'Balance',
-                      value: deficitLabel,
-                      target: '',
-                      showSlash: false,
-                    ),
-                    const SizedBox(height: 12),
-                    _ProgressLabel(
-                      color: AppColors.caloriesRing,
-                      label: 'Calories',
-                      value: '$todayCalories',
-                      target: '$targetCalories',
-                    ),
-                    const SizedBox(height: 12),
-                    _ProgressLabel(
-                      color: AppColors.stepsRing,
-                      label: 'Steps',
-                      value: '$todaySteps',
-                      target: '$targetSteps',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgressLabel extends StatelessWidget {
-  final Color color;
-  final String label;
-  final String value;
-  final String target;
-  final bool showSlash;
-
-  const _ProgressLabel({
-    required this.color,
-    required this.label,
-    required this.value,
-    required this.target,
-    this.showSlash = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        Text(
-          showSlash ? '$value/' : value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        if (showSlash && target.isNotEmpty)
-          Text(
-            target,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Weight trend chart card
 class _WeightChartCard extends StatelessWidget {
   final AsyncValue<List<dynamic>> checkInsAsync;
 
@@ -734,7 +294,7 @@ class _WeightChartCard extends StatelessWidget {
                   )
                 : _SimpleLineChart(
                     data: checkIns
-                        .map((c) => (c.weightKg as double))
+                        .map((c) => (c.weightKg as double?))
                         .toList()
                         .reversed
                         .toList(),
@@ -742,18 +302,7 @@ class _WeightChartCard extends StatelessWidget {
                   ),
           ),
           const SizedBox(height: 8),
-          // Day labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-                .map((d) => Text(
-                      d,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ))
-                .toList(),
-          ),
+          const Text('Recorded check-ins in time order; gaps are unrecorded.'),
         ],
       ),
     );
@@ -762,7 +311,7 @@ class _WeightChartCard extends StatelessWidget {
 
 /// Simple line chart widget
 class _SimpleLineChart extends StatelessWidget {
-  final List<double> data;
+  final List<double?> data;
   final Color color;
 
   const _SimpleLineChart({
@@ -772,7 +321,7 @@ class _SimpleLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (data.isEmpty) return const SizedBox();
+    if (data.whereType<double>().where((v) => v.isFinite && v > 0).isEmpty) return const Center(child: Text('No weight recorded'));
 
     return CustomPaint(
       size: const Size(double.infinity, 120),
@@ -785,7 +334,7 @@ class _SimpleLineChart extends StatelessWidget {
 }
 
 class _LineChartPainter extends CustomPainter {
-  final List<double> data;
+  final List<double?> data;
   final Color color;
 
   _LineChartPainter({required this.data, required this.color});
@@ -804,23 +353,29 @@ class _LineChartPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final minVal = data.reduce((a, b) => a < b ? a : b) - 0.5;
-    final maxVal = data.reduce((a, b) => a > b ? a : b) + 0.5;
+    final valid = data.whereType<double>().where((v) => v.isFinite && v > 0).toList();
+    if (valid.isEmpty) return;
+    final minVal = valid.reduce((a, b) => a < b ? a : b) - 0.5;
+    final maxVal = valid.reduce((a, b) => a > b ? a : b) + 0.5;
     final range = maxVal - minVal;
 
     final path = Path();
     final points = <Offset>[];
 
+    var connected = false;
     for (int i = 0; i < data.length; i++) {
+      final value = data[i];
+      if (value == null || !value.isFinite || value <= 0) { connected = false; continue; }
       final x = size.width * i / (data.length - 1).clamp(1, data.length);
-      final y = size.height - (size.height * (data[i] - minVal) / range);
+      final y = size.height - (size.height * (value - minVal) / range);
       points.add(Offset(x, y));
 
-      if (i == 0) {
+      if (!connected) {
         path.moveTo(x, y);
       } else {
         path.lineTo(x, y);
       }
+      connected = true;
     }
 
     canvas.drawPath(path, paint);
@@ -839,231 +394,19 @@ class _LineChartPainter extends CustomPainter {
   }
 }
 
-/// Consistency bar chart card
-class _ConsistencyCard extends StatelessWidget {
-  final AsyncValue<List<dynamic>> sessionsAsync;
-
-  const _ConsistencyCard({required this.sessionsAsync});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // Placeholder data for 4 weeks
-    final weekData = [3, 4, 3, 2]; // workouts per week
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Consistency',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 100,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(4, (i) {
-                final count = weekData[i];
-                final height = (count / 5) * 80; // Max 5 workouts
-                final isCurrentWeek = i == weekData.length - 1;
-
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (isCurrentWeek)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '$count workouts',
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      ),
-                    if (isCurrentWeek) const SizedBox(height: 4),
-                    Container(
-                      width: 40,
-                      height: height.clamp(10.0, 80.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(isCurrentWeek ? 1 : 0.5),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'W${i + 1}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                );
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Cycle prediction summary card (shows when cycle tracking + premium active)
 class _CyclePredictionSummary extends ConsumerWidget {
-  const _CyclePredictionSummary();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final profileAsync = ref.watch(userProfileProvider);
-    final accessAsync = ref.watch(premiumAccessProvider);
-    final predictionAsync = ref.watch(latestCyclePredictionProvider);
-
-    final profile = profileAsync.valueOrNull;
-    final canAccessCycle = accessAsync.valueOrNull
-            ?.canAccessFeature(PremiumFeature.cyclePredictions) ??
-        false;
-
-    // Only show if user tracks cycles and can access cycle predictions
-    if (profile == null || !profile.trackCycle || !canAccessCycle) {
-      return const SizedBox.shrink();
-    }
-
-    return predictionAsync.when(
-      data: (prediction) {
-        if (prediction == null) return const SizedBox.shrink();
-
-        final dateFormat = DateFormat('MMM d');
-        final daysUntilPeriod = prediction.predictedPeriodDate
-            .difference(DateTime.now())
-            .inDays;
-
-        return GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/cycle-insights'),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.auto_graph, size: 18, color: AppColors.seasonAccent),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Cycle Prediction',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Next period',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            dateFormat.format(prediction.predictedPeriodDate),
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'In',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            daysUntilPeriod > 0
-                                ? '$daysUntilPeriod days'
-                                : 'Today',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: daysUntilPeriod <= 3
-                                  ? const Color(0xFFE57373)
-                                  : AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${(prediction.confidence * 100).round()}%',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-    );
+ const _CyclePredictionSummary();
+ @override Widget build(BuildContext context, WidgetRef ref) {
+  final profile=ref.watch(userProfileProvider).valueOrNull;
+  final access=ref.watch(premiumAccessProvider).valueOrNull;
+  if(profile?.trackCycle != true || access?.canAccessFeature(PremiumFeature.cyclePredictions) != true) {
+   return const SizedBox.shrink();
   }
+  return Card(child:ListTile(leading:const Icon(Icons.calendar_today),
+   title:const Text('Cycle tracker'),subtitle:const Text('Browse recorded events and clearly labeled calendar estimates.'),
+   trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.pushNamed(context,'/cycle-insights')));
+ }
 }
 
 /// Advanced Analytics: navigable tile when premium, feature card otherwise

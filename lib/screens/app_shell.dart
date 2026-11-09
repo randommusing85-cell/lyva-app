@@ -1,3 +1,5 @@
+import '../state/providers.dart';
+import '../services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import 'home_screen.dart';
 import 'plans_tab_screen.dart';
 import 'trends_screen.dart';
 import 'settings_screen.dart';
+import 'community_screen.dart';
 import 'checkin_screen.dart';
 import '../services/analytics_service.dart';
 
@@ -16,13 +19,43 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> {
+class _AppShellState extends ConsumerState<AppShell>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshReminders();
+  }
+
+  Future<void> _refreshReminders() async {
+    try {
+      final profile = await ref.read(userProfileRepoProvider).getProfile();
+      if (mounted && profile != null) {
+        await NotificationService().setupNotifications(profile);
+      }
+    } catch (_) {
+      // Saved preferences remain intact; Settings can explicitly retry.
+    }
+  }
+
   int _selectedIndex = 0;
 
   static const List<Widget> _screens = [
     HomeScreen(),
     PlansTabScreen(),
     TrendsScreen(),
+    CommunityScreen(),
     SettingsScreen(),
   ];
 
@@ -30,9 +63,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     setState(() {
       _selectedIndex = index;
     });
-    
+
     // Track screen views
-    final screens = ['home', 'nutrition', 'trends', 'settings'];
+    final screens = ['home', 'nutrition', 'trends', 'community', 'settings'];
     final analytics = AnalyticsService();
     analytics.logScreenView(screens[index]);
   }
@@ -59,6 +92,11 @@ class _AppShellState extends ConsumerState<AppShell> {
             icon: Icon(Icons.trending_up_outlined),
             selectedIcon: Icon(Icons.trending_up),
             label: 'Trends',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.forum_outlined),
+            selectedIcon: Icon(Icons.forum),
+            label: 'Circles',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

@@ -2,31 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../state/providers.dart';
+import 'recorded_week_card.dart';
 import '../theme/app_theme.dart';
 
 class StepsTrendCard extends ConsumerWidget {
-  const StepsTrendCard({super.key});
+  final DateTime anchor;
+  const StepsTrendCard({super.key, required this.anchor});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final weeklyAsync = ref.watch(weeklyStepsProvider);
+    final weeklyAsync = ref.watch(recordedWeekProvider(anchor));
 
     return weeklyAsync.when(
-      data: (data) {
-        if (data.isEmpty) return const SizedBox.shrink();
+      data: (week) {
+        final data = {for (final day in week.days) if (day.steps != null) day.date: day.steps!};
+        if (data.isEmpty) return const Text('No step counts recorded in check-ins for this week.');
         return _buildChart(context, data);
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const Text('Recorded steps could not be loaded.'),
     );
   }
 
   Widget _buildChart(BuildContext context, Map<DateTime, int> data) {
     final entries = data.entries.toList();
     final maxSteps = entries.map((e) => e.value).fold<int>(1, (a, b) => a > b ? a : b);
-    const stepGoal = 8000;
-    final chartMax = maxSteps > stepGoal ? maxSteps : stepGoal;
+    final chartMax = maxSteps;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -49,7 +50,7 @@ class StepsTrendCard extends ConsumerWidget {
               const Icon(Icons.directions_walk, size: 18, color: AppColors.stepsRing),
               const SizedBox(width: 8),
               const Text(
-                'Steps This Week',
+                'Recorded check-in steps',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -85,13 +86,11 @@ class StepsTrendCard extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Flexible(
                           child: FractionallySizedBox(
-                            heightFactor: fraction == 0 ? 0.02 : fraction,
+                            heightFactor: fraction,
                             child: Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
-                                color: entry.value >= stepGoal
-                                    ? AppColors.stepsRing
-                                    : isToday
+                                color: isToday
                                         ? AppColors.stepsRing.withOpacity(0.7)
                                         : AppColors.stepsRing.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(4),
@@ -115,22 +114,8 @@ class StepsTrendCard extends ConsumerWidget {
               }).toList(),
             ),
           ),
-          // Goal line label
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                width: 12,
-                height: 2,
-                color: AppColors.stepsRing.withOpacity(0.5),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Goal: ${_formatSteps(stepGoal)}',
-                style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-              ),
-            ],
-          ),
+          const Text('Latest recorded count per day. Missing days are not zero; no goal is inferred.'),
         ],
       ),
     );

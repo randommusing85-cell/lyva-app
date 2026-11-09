@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user_profile.dart';
 import '../state/providers.dart';
-import '../services/analytics_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/workout_day_scheduler.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -45,6 +45,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   bool _initialized = false;
 
   UserProfile? _originalProfile;
+  DateTime? _originalRevision;
 
   @override
   void initState() {
@@ -66,6 +67,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (_initialized) return;
 
     _originalProfile = profile;
+    _originalRevision = profile.updatedAt;
 
     _ageCtrl.text = profile.age.toString();
     _heightCtrl.text = profile.heightCm.toString();
@@ -147,33 +149,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       return;
     }
 
-    // Validate post-partum
-    if (_postPartumStatus != 'no') {
-      if (_deliveryDate == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select your delivery date'),
-          ),
-        );
-        return;
-      }
-
-      if (!_medicalClearance) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Medical clearance is required for post-partum exercise'),
-          ),
-        );
-        return;
-      }
-    }
+    // Missing or revoked clearance must remain saveable for tracking.
+    // Personalized postpartum guidance is independently default-denied.
 
     setState(() => _saving = true);
 
     try {
-      final profile = UserProfile()
-        ..id = _originalProfile!.id
+      final changedFields = _getChangedFields();
+      final repo = ref.read(userProfileRepoProvider);
+      final current = await repo.getProfile();
+      if (current == null) throw StateError('Profile no longer exists');
+      if (_originalRevision != current.updatedAt) {
+        throw StateError('Profile changed while editing. Reopen this form before saving.');
+      }
+      final profile = current
         ..age = int.parse(_ageCtrl.text.trim())
         ..sex = _sex
         ..heightCm = int.parse(_heightCtrl.text.trim())
@@ -183,13 +172,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ..equipment = _equipment
         ..trainingDaysPerWeek = _trainingDays
         ..scheduledDaysList = _scheduledDays // NEW: Save scheduled days
-        ..createdAt = _originalProfile!.createdAt
         ..updatedAt = DateTime.now()
         // Cycle tracking
         ..trackCycle = _trackCycle
         ..lastPeriodDate = _lastPeriodDate
         ..cycleLength = _cycleLength
-        ..periodDuration = _originalProfile!.periodDuration
         // Post-partum
         ..postPartumStatus = _postPartumStatus
         ..deliveryDate = _deliveryDate
@@ -197,17 +184,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ..checkDiastasis = _checkDiastasis
         ..deliveryType = _deliveryType;
 
-      final repo = ref.read(userProfileRepoProvider);
       await repo.saveProfile(profile);
+      ref.invalidate(userProfileProvider);
+      await NotificationService().setupNotifications(profile);
 
       // Track analytics
-      final analytics = AnalyticsService();
+      final analytics = ref.read(analyticsProvider);
       await analytics.logProfileUpdated(
-        fieldsChanged: _getChangedFields(),
+        fieldsChanged: changedFields,
       );
-
-      // Refresh provider
-      ref.invalidate(userProfileProvider);
 
       if (!mounted) return;
 
@@ -278,7 +263,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   validator: (v) {
                     final age = int.tryParse(v ?? '');
                     if (age == null) return 'Enter a valid age';
-                    if (age < 15 || age > 100) return 'Age must be 15-100';
+                    if (age < 18 || age > 100) return 'Age must be 18-100';
                     return null;
                   },
                 ),
@@ -584,8 +569,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       value: _medicalClearance,
                       onChanged: (v) =>
                           setState(() => _medicalClearance = v ?? false),
-                      title: const Text('I have medical clearance to exercise'),
-                      subtitle: const Text('Required to proceed'),
+                      title: const Text('I have doctor or OBGYN clearance for a tailored postpartum plan'),
+                      subtitle: const Text('Optional for tracking. Tailored postpartum plans are not yet available.'),
                       controlAffinity: ListTileControlAffinity.leading,
                     ),
                     if (_postPartumStatus == 'early' ||

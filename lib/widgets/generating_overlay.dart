@@ -1,3 +1,6 @@
+import '../services/personalization_safety.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'personalization_boundary.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 
@@ -211,8 +214,16 @@ Future<T?> showGeneratingOverlay<T>({
   Object? error;
 
   // Show the overlay
-  final overlayEntry = OverlayEntry(
-    builder: (context) => GeneratingOverlay(
+  final container = ProviderScope.containerOf(context, listen: false);
+  var removed = false;
+  var cancelled = false;
+  late OverlayEntry overlayEntry;
+  void dismiss() {
+    if (!removed) { removed = true;overlayEntry.remove(); }
+  }
+  overlayEntry = OverlayEntry(
+    builder: (context) => UncontrolledProviderScope(container: container,
+      child: PersonalizationModalBoundary(onClose: () { cancelled = true;dismiss(); }, builder: (context) => GeneratingOverlay(
       title: title,
       subtitle: subtitle,
       tips: tips ?? const [
@@ -221,7 +232,7 @@ Future<T?> showGeneratingOverlay<T>({
         'Personalizing recommendations...',
         'Fine-tuning the details...',
       ],
-    ),
+    ))),
   );
 
   Overlay.of(context).insert(overlayEntry);
@@ -231,9 +242,11 @@ Future<T?> showGeneratingOverlay<T>({
   } catch (e) {
     error = e;
   } finally {
-    overlayEntry.remove();
+    dismiss();
+    overlayEntry.dispose();
   }
 
+  if (cancelled) throw const PersonalizationUnavailable('This preview was closed. No result will be shown.');
   if (error != null) {
     throw error;
   }

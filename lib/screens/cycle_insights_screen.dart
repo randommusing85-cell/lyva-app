@@ -1,423 +1,411 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-
+import '../models/cycle_calendar_data.dart';
 import '../models/cycle_log.dart';
-import '../models/cycle_prediction.dart';
+import '../services/notification_service.dart';
 import '../services/premium_service.dart';
 import '../state/providers.dart';
-import '../theme/app_theme.dart';
-import '../widgets/cycle_phase_card.dart';
+import '../widgets/cycle_calendar.dart';
 import '../widgets/premium_gate.dart';
 
 class CycleInsightsScreen extends ConsumerStatefulWidget {
   const CycleInsightsScreen({super.key});
-
   @override
-  ConsumerState<CycleInsightsScreen> createState() => _CycleInsightsScreenState();
+  ConsumerState<CycleInsightsScreen> createState() =>
+      _CycleInsightsScreenState();
 }
 
-class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen> {
-  bool _predicting = false;
-  String? _selectedSymptom;
+class _CycleInsightsScreenState extends ConsumerState<CycleInsightsScreen>
+    with WidgetsBindingObserver {
+  Timer? _midnight;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  void _scheduleDateRefresh() {
+    _midnight?.cancel();
+    final now = DateTime.now();
+    _midnight = Timer(
+      DateTime(now.year, now.month, now.day + 1).difference(now),
+      () {
+        if (mounted) {
+          setState(() {});
+          _scheduleDateRefresh();
+        }
+      },
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() {});
+      _scheduleDateRefresh();
+    }
+  }
+
+  @override
+  void dispose() {
+    _midnight?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  bool _saving = false, _showEstimate = false;
+  String? _symptom;
   int _severity = 3;
+  Future<void> editDetails(CycleLog original) async {
+    if (_saving ||
+        ref.read(userProfileProvider).valueOrNull?.trackCycle != true) {
+      return;
+    }
+    var notes = original.notes ?? '';
+    var severity = original.severity;
+    if (severity != null && (severity < 1 || severity > 5)) {
+      severity = null;
+    }
+    var pending = false;
+    String? error;
+    setState(() => _saving = true);
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, update) => PopScope(
+            canPop: !pending,
+            child: AlertDialog(
+              title: const Text('Edit recorded details'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'The recorded date and event type stay unchanged.',
+                    ),
+                    TextFormField(
+                      initialValue: notes,
+                      maxLines: 3,
+                      maxLength: 2000,
+                      decoration: const InputDecoration(
+                        labelText: 'Optional notes',
+                      ),
+                      enabled: !pending,
+                      onChanged: (value) => notes = value,
+                    ),
+                    if (original.eventType == 'symptom')
+                      DropdownButtonFormField<int>(
+                        initialValue: severity ?? 0,
+                        decoration: const InputDecoration(
+                          labelText: 'Reported severity',
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: 0,
+                            child: Text('Not logged'),
+                          ),
+                          for (var i = 1; i <= 5; i++)
+                            DropdownMenuItem(value: i, child: Text('$i / 5')),
+                        ],
+                        onChanged: pending
+                            ? null
+                            : (value) => severity = value == 0 ? null : value,
+                      ),
+                    if (error != null) Text(error!),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: pending ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: pending
+                      ? null
+                      : () async {
+                          update(() {
+                            pending = true;
+                            error = null;
+                          });
+                          try {
+                            if (ref
+                                    .read(userProfileProvider)
+                                    .valueOrNull
+                                    ?.trackCycle !=
+                                true) {
+                              throw StateError('Tracking unavailable');
+                            }
+                            final saved = await ref
+                                .read(lyvaRepoProvider)
+                                .updateCycleLogDetails(
+                                  original,
+                                  notes: notes.isEmpty ? null : notes,
+                                  severity: severity,
+                                );
+                            if (!ctx.mounted) return;
+                            if (!saved) {
+                              update(() {
+                                pending = false;
+                                error =
+                                    'This record changed or was removed. Cancel and reopen the latest record.';
+                              });
+                              return;
+                            }
+                            ref.invalidate(cycleLogsProvider);
+                            Navigator.pop(ctx);
+                          } catch (_) {
+                            if (ctx.mounted) {
+                              update(() {
+                                pending = false;
+                                error =
+                                    'Could not save. Your edits are still here.';
+                              });
+                            }
+                          }
+                        },
+                  child: Text(pending ? 'Saving...' : 'Save details'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
-  static const _symptoms = [
-    ('cramps', 'Cramps'),
-    ('bloating', 'Bloating'),
-    ('headache', 'Headache'),
-    ('mood_change', 'Mood'),
-    ('fatigue', 'Fatigue'),
-    ('breast_tenderness', 'Tenderness'),
+  static const symptoms = [
+    'cramps',
+    'bloating',
+    'headache',
+    'mood_change',
+    'fatigue',
+    'breast_tenderness',
   ];
-
-  Future<void> _generatePrediction() async {
-    setState(() => _predicting = true);
-
+  Future<void> save({required bool period}) async {
+    if (_saving ||
+        ref.read(userProfileProvider).valueOrNull?.trackCycle != true) {
+      return;
+    }
+    if (!period && _symptom == null) return;
+    if (period) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Log period start today?'),
+          content: const Text(
+            'This records today as a period start. It does not confirm ovulation or other bleeding days.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Log start'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    if (ref.read(userProfileProvider).valueOrNull?.trackCycle != true) return;
+    setState(() => _saving = true);
+    var saved = false;
     try {
       final repo = ref.read(lyvaRepoProvider);
-      final profile = await ref.read(userProfileProvider.future);
-      if (profile == null) return;
-
-      // Gather data
-      final cycleLogs = await repo.getCycleLogs(limit: 90);
-      final checkIns = await repo.latestCheckIns(limit: 30);
-      final sessions = await repo.getThisWeekSessions();
-
-      final cycleHistory = cycleLogs
-          .where((l) => l.eventType == 'period_start')
-          .map((l) => {'periodStart': l.ts.toIso8601String()})
-          .toList();
-
-      final checkInData = checkIns
-          .map((c) => {
-                'date': c.ts.toIso8601String(),
-                'moodScore': c.moodScore,
-                'energyScore': c.energyScore,
-                'weightKg': c.weightKg,
-              })
-          .toList();
-
-      final workoutData = sessions
-          .map((s) => {
-                'date': s.date.toIso8601String(),
-                'completed': s.completed,
-                'dayIndex': s.dayIndex,
-              })
-          .toList();
-
-      final result = await repo.predictCycle(
-        cycleHistory: cycleHistory,
-        checkInData: checkInData,
-        workoutData: workoutData,
-        profileData: {
-          'age': profile.age,
-          'avgCycleLength': profile.cycleLength,
-          'periodDuration': profile.periodDuration,
-        },
-      );
-
-      // Save prediction
-      final pred = result['prediction'] as Map<String, dynamic>;
-      final prediction = CyclePrediction()
-        ..ts = DateTime.now()
-        ..predictedPeriodDate = DateTime.parse(pred['predictedPeriodDate'])
-        ..predictedOvulation = DateTime.parse(pred['predictedOvulation'])
-        ..fertileWindowStart = DateTime.parse(pred['fertileWindowStart'])
-        ..fertileWindowEnd = DateTime.parse(pred['fertileWindowEnd'])
-        ..predictedCycleLength = pred['predictedCycleLength'] as int
-        ..confidence = (pred['confidence'] as num).toDouble()
-        ..factorsJson = pred['factors'] != null ? pred['factors'].toString() : null;
-
-      await repo.saveCyclePrediction(prediction);
-      ref.invalidate(latestCyclePredictionProvider);
-      ref.read(analyticsProvider).logCyclePredictionGenerated();
-    } catch (e) {
+      if (period) {
+        await repo.confirmPeriodStarted(DateTime.now());
+      } else {
+        await repo.saveTrackedCycleLog(
+          CycleLog()
+            ..ts = DateTime.now()
+            ..eventType = 'symptom'
+            ..symptomType = _symptom
+            ..severity = _severity,
+        );
+      }
+      saved = true;
+      ref.invalidate(cycleLogsProvider);
+      if (period) {
+        ref.invalidate(userProfileProvider);
+        ref.invalidate(currentCyclePhaseProvider);
+        ref.invalidate(latestCyclePredictionProvider);
+        final profile = await ref.read(userProfileRepoProvider).getProfile();
+        if (profile != null) {
+          await NotificationService().setupNotifications(profile);
+        }
+      }
+      if (mounted) {
+        setState(() => _symptom = null);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Recorded for today')));
+      }
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Prediction failed. Please try again.')),
+          SnackBar(
+            content: Text(
+              saved
+                  ? 'Record saved, but reminders could not refresh. Do not log it again.'
+                  : 'Could not save. Your selection is still here; please try again.',
+            ),
+          ),
         );
       }
     } finally {
-      if (mounted) setState(() => _predicting = false);
-    }
-  }
-
-  Future<void> _logSymptom() async {
-    if (_selectedSymptom == null) return;
-
-    final repo = ref.read(lyvaRepoProvider);
-    final log = CycleLog()
-      ..ts = DateTime.now()
-      ..eventType = 'symptom'
-      ..symptomType = _selectedSymptom
-      ..severity = _severity;
-
-    await repo.saveCycleLog(log);
-    ref.read(analyticsProvider).logCycleSymptomLogged(
-      symptomType: _selectedSymptom!,
-      severity: _severity,
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Symptom logged'), duration: Duration(seconds: 1)),
-      );
-      setState(() => _selectedSymptom = null);
-    }
-  }
-
-  Future<void> _logPeriodStart() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log Period Start'),
-        content: const Text('Confirm that your period started today?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await ref.read(lyvaRepoProvider).confirmPeriodStarted(DateTime.now());
-      ref.invalidate(userProfileProvider);
-      ref.invalidate(currentCyclePhaseProvider);
-      ref.invalidate(latestCyclePredictionProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Period start logged')),
-        );
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final predictionAsync = ref.watch(latestCyclePredictionProvider);
-    final dateFormat = DateFormat('MMM d');
-
+    final profile = ref.watch(userProfileProvider);
+    if (profile.valueOrNull?.trackCycle != true) {
+      _showEstimate = false;
+      _midnight?.cancel();
+      _midnight = null;
+      return Scaffold(
+        appBar: AppBar(title: const Text('Cycle tracker')),
+        body: Center(
+          child: Text(
+            profile.isLoading
+                ? 'Loading preferences...'
+                : 'Cycle tracking is off or unavailable. Manage it in your profile.',
+          ),
+        ),
+      );
+    }
+    if (_midnight == null) {
+      _scheduleDateRefresh();
+    }
+    final p = profile.valueOrNull!;
+    final logs = ref.watch(cycleLogsProvider);
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Cycle Insights'),
-        backgroundColor: AppColors.background,
-      ),
+      appBar: AppBar(title: const Text('Cycle tracker')),
       body: PremiumGate(
         feature: PremiumFeature.cyclePredictions,
         child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Current phase card
-            const CyclePhaseCard(),
-            const SizedBox(height: 16),
-
-            // Prediction card
-            predictionAsync.when(
-              data: (prediction) {
-                if (prediction == null) {
-                  return _buildGeneratePredictionCard();
-                }
-
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.auto_graph, size: 20, color: AppColors.seasonAccent),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'AI Prediction',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${(prediction.confidence * 100).round()}% confident',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _PredictionRow(
-                        label: 'Next period',
-                        value: dateFormat.format(prediction.predictedPeriodDate),
-                        icon: Icons.water_drop,
-                        color: const Color(0xFFE57373),
-                      ),
-                      const SizedBox(height: 10),
-                      _PredictionRow(
-                        label: 'Ovulation',
-                        value: dateFormat.format(prediction.predictedOvulation),
-                        icon: Icons.egg_outlined,
-                        color: const Color(0xFFE5B94D),
-                      ),
-                      const SizedBox(height: 10),
-                      _PredictionRow(
-                        label: 'Fertile window',
-                        value: '${dateFormat.format(prediction.fertileWindowStart)} - ${dateFormat.format(prediction.fertileWindowEnd)}',
-                        icon: Icons.favorite_border,
-                        color: const Color(0xFF8BA888),
-                      ),
-                      const SizedBox(height: 10),
-                      _PredictionRow(
-                        label: 'Predicted cycle length',
-                        value: '${prediction.predictedCycleLength} days',
-                        icon: Icons.calendar_today,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _predicting ? null : _generatePrediction,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
-                          ),
-                          child: Text(_predicting ? 'Refreshing...' : 'Refresh Prediction'),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => _buildGeneratePredictionCard(),
-            ),
-            const SizedBox(height: 20),
-
-            // Log period start
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _logPeriodStart,
-                icon: const Icon(Icons.water_drop),
-                label: const Text('Log Period Start'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE57373),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Your recorded experience',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Symptom logger
-            const Text(
-              'Log Symptoms',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _symptoms.map((s) {
-                final isSelected = _selectedSymptom == s.$1;
-                return ChoiceChip(
-                  label: Text(s.$2),
-                  selected: isSelected,
-                  selectedColor: AppColors.seasonAccent.withOpacity(0.2),
-                  onSelected: (selected) {
-                    setState(() => _selectedSymptom = selected ? s.$1 : null);
-                  },
-                );
-              }).toList(),
-            ),
-
-            if (_selectedSymptom != null) ...[
-              const SizedBox(height: 16),
-              const Text('Severity', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-              Slider(
-                value: _severity.toDouble(),
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: _severity.toString(),
-                activeColor: AppColors.seasonAccent,
-                onChanged: (v) => setState(() => _severity = v.round()),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text('Mild', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                  Text('Severe', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                ],
+              const Text(
+                'Browse bleeding events and symptoms. Not logged is different from none. Calendar estimates cannot confirm ovulation and must not be used as contraception.',
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _logSymptom,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Log Symptom'),
+              logs.when(
+                data: (records) {
+                  final data = CycleCalendarData(
+                    profile: p,
+                    logs: records,
+                    today: DateTime.now(),
+                    showEstimate: _showEstimate && p.postPartumStatus == 'no',
+                  );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      CycleCalendar(
+                        data: data,
+                        onEdit: _saving ? null : editDetails,
+                      ),
+                      const SizedBox(height: 16),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Show a calendar-only period estimate',
+                        ),
+                        subtitle: const Text(
+                          'Off by default. Use recorded-only tracking with hormonal contraception or when natural-cycle estimates do not apply. No phase or fertility estimates are made.',
+                        ),
+                        value: _showEstimate && p.postPartumStatus == 'no',
+                        onChanged: p.postPartumStatus == 'no'
+                            ? (value) => setState(() => _showEstimate = value)
+                            : null,
+                      ),
+                      Text(data.estimateExplanation),
+                    ],
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, _) => Column(
+                  children: [
+                    const Text(
+                      'Cycle records could not load. No missing days have been assumed.',
+                    ),
+                    TextButton(
+                      onPressed: () => ref.invalidate(cycleLogsProvider),
+                      child: const Text('Retry records'),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 24),
+              const Text(
+                'Log today',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const Text(
+                'Logging is optional. These controls record today, regardless of the date you are viewing above.',
+              ),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : () => save(period: true),
+                icon: const Icon(Icons.water_drop_outlined),
+                label: const Text('Log period start today'),
+              ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final symptom in symptoms)
+                    ChoiceChip(
+                      label: Text(symptom.replaceAll('_', ' ')),
+                      selected: _symptom == symptom,
+                      onSelected: _saving
+                          ? null
+                          : (selected) => setState(
+                              () => _symptom = selected ? symptom : null,
+                            ),
+                    ),
+                ],
+              ),
+              if (_symptom != null) ...[
+                Text('Reported severity: $_severity / 5'),
+                Slider(
+                  value: _severity.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  label: '$_severity of 5',
+                  semanticFormatterCallback: (value) =>
+                      'Severity ${value.round()} of 5',
+                  onChanged: _saving
+                      ? null
+                      : (value) => setState(() => _severity = value.round()),
+                ),
+                FilledButton(
+                  onPressed: _saving ? null : () => save(period: false),
+                  child: const Text('Log symptom today'),
+                ),
+              ],
+              if (_saving) const Text('Saving...'),
             ],
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
-      ),
-    );
-  }
-
-  Widget _buildGeneratePredictionCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.seasonAccent.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.auto_graph, size: 40, color: AppColors.seasonAccent),
-          const SizedBox(height: 12),
-          const Text(
-            'AI Cycle Predictions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Get AI-powered predictions based on your cycle history, mood, energy, and workout patterns.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _predicting ? null : _generatePrediction,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.seasonAccent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _predicting
-                  ? const SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Generate Prediction', style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PredictionRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _PredictionRow({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-        const Spacer(),
-        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-      ],
     );
   }
 }

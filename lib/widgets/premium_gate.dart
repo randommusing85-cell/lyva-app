@@ -6,6 +6,33 @@ import '../services/premium_service.dart';
 import '../services/analytics_service.dart';
 import '../state/providers.dart';
 
+/// Recheck at the action boundary, including actions outside a gated body.
+Future<bool> requirePremiumAccess(
+  BuildContext context,
+  WidgetRef ref,
+  PremiumFeature feature,
+) async {
+  try {
+    final profile = await ref.read(userProfileProvider.future);
+    if (!context.mounted) return false;
+    final access = await ref
+        .read(premiumServiceProvider)
+        .getAccessStatusAsync(profile);
+    if (!context.mounted) return false;
+    if (access.canAccessFeature(feature)) return true;
+    await Navigator.pushNamed(context, ref.read(accountSessionProvider).recoverable ? '/paywall' : '/account');
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to verify access. Please try again.'),
+        ),
+      );
+    }
+  }
+  return false;
+}
+
 /// A widget that gates premium content behind trial/subscription with tier awareness
 class PremiumGate extends ConsumerWidget {
   final PremiumFeature feature;
@@ -57,7 +84,7 @@ class PremiumGate extends ConsumerWidget {
           );
         }
 
-        // Case 2: No trial started — offer free trial
+        // A local trial cannot bypass account and server verification.
         if (access.type == PremiumAccessType.none) {
           return _buildOverlay(
             context: context,
@@ -65,8 +92,8 @@ class PremiumGate extends ConsumerWidget {
             opacity: 0.5,
             badgeColor: AppColors.seasonAccent,
             icon: Icons.star,
-            label: 'Try Free for 7 Days',
-            onTap: () => _showTrialOfferSheet(context, ref, feature),
+            label: 'Account & Subscription Required',
+            onTap: () => Navigator.pushNamed(context, '/paywall'),
           );
         }
 
@@ -81,8 +108,19 @@ class PremiumGate extends ConsumerWidget {
           onTap: () => Navigator.pushNamed(context, '/paywall'),
         );
       },
-      loading: () => child,
-      error: (_, __) => child,
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Unable to verify access. Please try again.'),
+            TextButton(
+              onPressed: () => ref.invalidate(premiumAccessProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -99,12 +137,17 @@ class PremiumGate extends ConsumerWidget {
       onTap: onTap,
       child: Stack(
         children: [
-          Opacity(opacity: opacity, child: IgnorePointer(child: child)),
+          Opacity(
+            opacity: opacity,
+            child: IgnorePointer(child: child),
+          ),
           Positioned.fill(
             child: Center(
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: badgeColor,
                   borderRadius: BorderRadius.circular(20),
@@ -131,108 +174,6 @@ class PremiumGate extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// Show trial offer bottom sheet
-void _showTrialOfferSheet(
-    BuildContext context, WidgetRef ref, PremiumFeature feature) {
-  showModalBottomSheet(
-    context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: AppColors.textMuted.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.seasonAccent,
-                    AppColors.seasonAccent.withOpacity(0.7),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(32),
-              ),
-              child: const Icon(Icons.star, color: Colors.white, size: 32),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Start Your Free Trial',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try ${feature.name} and all premium features free for 7 days.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 15, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final profileRepo = ref.read(userProfileRepoProvider);
-                  await profileRepo.startPremiumTrial();
-                  ref.invalidate(userProfileProvider);
-                  ref.invalidate(premiumAccessProvider);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.seasonAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Start 7-Day Free Trial',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                if (ctx.mounted) Navigator.pop(ctx);
-                Navigator.pushNamed(context, '/paywall');
-              },
-              child: const Text(
-                'View subscription plans',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'No credit card required for trial',
-              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 /// A button that navigates to the paywall
@@ -283,9 +224,7 @@ class PremiumButton extends StatelessWidget {
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.textPrimary,
-        side: BorderSide(
-          color: AppColors.seasonAccent.withOpacity(0.5),
-        ),
+        side: BorderSide(color: AppColors.seasonAccent.withOpacity(0.5)),
       ),
     );
   }
@@ -340,11 +279,7 @@ class PremiumFeatureCard extends StatelessWidget {
                 color: AppColors.seasonAccent.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(
-                icon,
-                color: AppColors.seasonAccent,
-                size: 24,
-              ),
+              child: Icon(icon, color: AppColors.seasonAccent, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -397,10 +332,7 @@ class PremiumFeatureCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textMuted,
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.textMuted),
           ],
         ),
       ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../models/user_profile.dart';
 import '../models/workout_session_doc.dart';
 import '../repos/lyva_repo.dart';
 import '../services/premium_service.dart';
@@ -147,36 +146,36 @@ class _BodyCompositionCard extends ConsumerWidget {
       child: checkInsAsync.when(
         data: (checkIns) {
           if (checkIns.isEmpty) {
-            return const _EmptyState(text: 'Check in daily to see trends');
+            return const _EmptyState(text: 'No measurements recorded in this range');
           }
 
           // Reverse to chronological order
           final sorted = checkIns.reversed.toList();
-          final weights = sorted.map((c) => c.weightKg).toList();
-          final waists = sorted.map((c) => c.waistCm.toDouble()).toList();
+          final weights = sorted.map<double?>((c) => c.weightKg).toList();
+          final waists = sorted.map<double?>((c) => c.waistCm).toList();
 
           // Calculate deltas
-          final weightDelta = weights.length >= 2
-              ? weights.last - weights.first
-              : 0.0;
-          final waistValues = waists.where((w) => w > 0).toList();
+          final weightValues = weights.whereType<double>().where((w) => w.isFinite && w > 0).toList();
+          final weightDelta = weightValues.length >= 2 ? weightValues.last - weightValues.first : null;
+          final waistValues = waists.whereType<double>().where((w) => w.isFinite && w > 0).toList();
           final waistDelta = waistValues.length >= 2
               ? waistValues.last - waistValues.first
-              : 0.0;
+              : null;
 
           return Column(
             children: [
+              const Text('Recorded measurements only; gaps are unrecorded. Changes need at least two values.'),
               // Delta badges
               Row(
                 children: [
-                  _DeltaBadge(
+                  if (weightDelta != null) _DeltaBadge(
                     label: 'Weight',
                     delta: weightDelta,
                     unit: 'kg',
                     color: AppColors.primary,
                   ),
                   const SizedBox(width: 12),
-                  if (waistValues.isNotEmpty)
+                  if (waistDelta != null)
                     _DeltaBadge(
                       label: 'Waist',
                       delta: waistDelta,
@@ -422,165 +421,13 @@ class _WorkoutFrequencyCard extends ConsumerWidget {
 // ===== MOOD/ENERGY × CYCLE PHASE CARD =====
 
 class _MoodEnergyCycleCard extends ConsumerWidget {
-  final int rangeDays;
-
-  const _MoodEnergyCycleCard({required this.rangeDays});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final profileAsync = ref.watch(userProfileProvider);
-    final profile = profileAsync.valueOrNull;
-
-    // Only show if user tracks cycles
-    if (profile == null || !profile.trackCycle) {
-      return const SizedBox.shrink();
-    }
-
-    final checkInsAsync = ref.watch(extendedCheckInsProvider(rangeDays));
-
-    return _AnalyticsCard(
-      title: 'Mood & Energy by Cycle Phase',
-      icon: Icons.psychology_outlined,
-      child: checkInsAsync.when(
-        data: (checkIns) {
-          // Group check-ins by cycle phase
-          final phases = ['Menstrual', 'Follicular', 'Ovulation', 'Luteal'];
-          final moodByPhase = <String, List<int>>{};
-          final energyByPhase = <String, List<int>>{};
-
-          for (final phase in phases) {
-            moodByPhase[phase] = [];
-            energyByPhase[phase] = [];
-          }
-
-          for (final c in checkIns) {
-            if (c.moodScore == null && c.energyScore == null) continue;
-            final phase = _getCyclePhaseForDate(c.ts, profile);
-            if (phase == null) continue;
-
-            if (c.moodScore != null) {
-              moodByPhase[phase]?.add(c.moodScore!);
-            }
-            if (c.energyScore != null) {
-              energyByPhase[phase]?.add(c.energyScore!);
-            }
-          }
-
-          final hasData = moodByPhase.values.any((l) => l.isNotEmpty) ||
-              energyByPhase.values.any((l) => l.isNotEmpty);
-
-          if (!hasData) {
-            return const _EmptyState(
-              text: 'Check in with mood & energy to see cycle correlations',
-            );
-          }
-
-          return Column(
-            children: [
-              // Phase bars
-              ...phases.map((phase) {
-                final moods = moodByPhase[phase] ?? [];
-                final energies = energyByPhase[phase] ?? [];
-                final avgMood = moods.isEmpty
-                    ? 0.0
-                    : moods.reduce((a, b) => a + b) / moods.length;
-                final avgEnergy = energies.isEmpty
-                    ? 0.0
-                    : energies.reduce((a, b) => a + b) / energies.length;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          phase,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Mood bar
-                      Expanded(
-                        child: _HorizontalBar(
-                          value: avgMood,
-                          maxValue: 5,
-                          color: const Color(0xFF5C9EDB),
-                          label: avgMood > 0
-                              ? avgMood.toStringAsFixed(1)
-                              : '-',
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Energy bar
-                      Expanded(
-                        child: _HorizontalBar(
-                          value: avgEnergy,
-                          maxValue: 5,
-                          color: const Color(0xFFE6A23C),
-                          label: avgEnergy > 0
-                              ? avgEnergy.toStringAsFixed(1)
-                              : '-',
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 10,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5C9EDB),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text('Mood',
-                      style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  const SizedBox(width: 16),
-                  Container(
-                    width: 10,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE6A23C),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text('Energy',
-                      style: TextStyle(fontSize: 11, color: Colors.grey)),
-                ],
-              ),
-            ],
-          );
-        },
-        loading: () => const _LoadingState(),
-        error: (_, __) => const _EmptyState(text: 'Error loading data'),
-      ),
-    );
-  }
-
-  String? _getCyclePhaseForDate(DateTime date, UserProfile profile) {
-    final lastPeriod = profile.lastPeriodDate;
-    if (lastPeriod == null) return null;
-
-    final cycleLength = profile.cycleLength;
-    final daysSincePeriod = date.difference(lastPeriod).inDays;
-    final cycleDay = daysSincePeriod % cycleLength;
-
-    if (cycleDay < 5) return 'Menstrual';
-    if (cycleDay < (cycleLength * 0.45).round()) return 'Follicular';
-    if (cycleDay < (cycleLength * 0.55).round()) return 'Ovulation';
-    return 'Luteal';
-  }
+ final int rangeDays;
+ const _MoodEnergyCycleCard({required this.rangeDays});
+ @override Widget build(BuildContext context, WidgetRef ref) {
+  if(ref.watch(userProfileProvider).valueOrNull?.trackCycle != true) {return const SizedBox.shrink();}
+  return const _AnalyticsCard(title:'Cycle and check-in records',icon:Icons.psychology_outlined,
+   child:Text('Mood and energy are recorded experiences. Calendar dates alone cannot establish cycle phases, so phase-based comparisons are not shown. Your saved check-ins are preserved.'));
+ }
 }
 
 // ===== SHARED WIDGETS =====
@@ -705,57 +552,6 @@ class _MetricBadge extends StatelessWidget {
           color: color,
         ),
       ),
-    );
-  }
-}
-
-class _HorizontalBar extends StatelessWidget {
-  final double value;
-  final double maxValue;
-  final Color color;
-  final String label;
-
-  const _HorizontalBar({
-    required this.value,
-    required this.maxValue,
-    required this.color,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fraction = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0) : 0.0;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 14,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(7),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: fraction,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(7),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        SizedBox(
-          width: 22,
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -1,10 +1,10 @@
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
 import '../repos/lyva_repo.dart';
 import '../models/workout_session_doc.dart';
+import '../models/workout_plan_snapshot.dart';
 
 /// Full-featured workout calendar with month view, navigation, and workout history
 class WorkoutCalendar extends ConsumerStatefulWidget {
@@ -99,7 +99,7 @@ class _WorkoutCalendarState extends ConsumerState<WorkoutCalendar> {
     // Show workout details dialog
     await showDialog(
       context: context,
-      builder: (ctx) => _WorkoutDetailDialog(
+      builder: (ctx) => WorkoutSessionDetailDialog(
         date: date,
         session: session,
       ),
@@ -481,11 +481,12 @@ class _LegendItem extends StatelessWidget {
   }
 }
 
-class _WorkoutDetailDialog extends ConsumerWidget {
+class WorkoutSessionDetailDialog extends StatelessWidget {
   final DateTime date;
   final WorkoutSessionDoc session;
 
-  const _WorkoutDetailDialog({
+  const WorkoutSessionDetailDialog({
+    super.key,
     required this.date,
     required this.session,
   });
@@ -498,9 +499,9 @@ class _WorkoutDetailDialog extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final templateAsync = ref.watch(latestWorkoutTemplateProvider);
+    final snapshot = WorkoutPlanSnapshot.fromSession(session);
 
     return Dialog(
       child: Container(
@@ -540,36 +541,16 @@ class _WorkoutDetailDialog extends ConsumerWidget {
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
-                child: templateAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (_, __) => const Text('Could not load workout details'),
-                  data: (template) {
-                    if (template == null) {
-                      return const Text('Workout plan not found');
+                child: Builder(builder: (context) {
+                    if (snapshot == null) {
+                      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('Original workout details were not saved for this session.'),
+                        Text('Day ${session.dayIndex}'),
+                        if (session.notes?.isNotEmpty == true) Text(session.notes!),
+                        if (session.skipReason?.isNotEmpty == true) Text(session.skipReason!),
+                      ]);
                     }
-
-                    final decoded = jsonDecode(template.json);
-                    final templateMap = Map<String, dynamic>.from(decoded);
-                    final days = (templateMap['days'] as List)
-                        .map((d) => Map<String, dynamic>.from(d as Map))
-                        .toList();
-
-                    Map<String, dynamic>? dayData;
-                    for (final d in days) {
-                      if (d['dayIndex'] == session.dayIndex) {
-                        dayData = d;
-                        break;
-                      }
-                    }
-
-                    if (dayData == null && session.dayIndex <= days.length) {
-                      dayData = days[session.dayIndex - 1];
-                    }
-
-                    if (dayData == null) {
-                      return Text('Day ${session.dayIndex} details not found');
-                    }
-
+                    final dayData = snapshot.day(session.dayIndex)!;
                     final title = dayData['title']?.toString() ?? 'Day ${session.dayIndex}';
                     final exercises = (dayData['exercises'] as List?)
                         ?.map((e) => Map<String, dynamic>.from(e as Map))
@@ -578,6 +559,12 @@ class _WorkoutDetailDialog extends ConsumerWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(snapshot.name),
+                        if (session.progressJson != null) TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/guided-workout', arguments: session.id),
+                          child: const Text('View saved set progress')),
+                        if (session.notes?.isNotEmpty == true) Text(session.notes!),
+                        if (session.skipReason?.isNotEmpty == true) Text(session.skipReason!),
                         Text(
                           title,
                           style: theme.textTheme.titleLarge?.copyWith(
@@ -586,7 +573,7 @@ class _WorkoutDetailDialog extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Day ${session.dayIndex} of ${template.daysPerWeek}',
+                          'Day ${session.dayIndex} of ${snapshot.daysPerWeek}',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -634,7 +621,7 @@ class _WorkoutDetailDialog extends ConsumerWidget {
                                         ),
                                       ),
                                       Text(
-                                        '$sets sets x $reps reps',
+                                        '$sets sets x $reps reps | ${ex['restSeconds']}s rest',
                                         style: theme.textTheme.bodySmall?.copyWith(
                                           color: theme.colorScheme.onSurfaceVariant,
                                         ),

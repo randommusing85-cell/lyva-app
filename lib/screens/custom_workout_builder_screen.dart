@@ -1,4 +1,6 @@
+import '../widgets/personalization_boundary.dart';
 import 'dart:convert';
+import '../models/workout_exercise.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,16 +12,16 @@ import '../widgets/premium_gate.dart';
 import '../services/premium_service.dart';
 import 'exercise_picker_screen.dart';
 
-class CustomWorkoutBuilderScreen extends ConsumerStatefulWidget {
-  const CustomWorkoutBuilderScreen({super.key});
+class _CustomWorkoutBuilderScreenContent extends ConsumerStatefulWidget {
+  const _CustomWorkoutBuilderScreenContent();
 
   @override
-  ConsumerState<CustomWorkoutBuilderScreen> createState() =>
+  ConsumerState<_CustomWorkoutBuilderScreenContent> createState() =>
       _CustomWorkoutBuilderScreenState();
 }
 
 class _CustomWorkoutBuilderScreenState
-    extends ConsumerState<CustomWorkoutBuilderScreen>
+    extends ConsumerState<_CustomWorkoutBuilderScreenContent>
     with SingleTickerProviderStateMixin {
   // Step tracking
   int _currentStep = 0; // 0=setup, 1=day builder, 2=review
@@ -430,6 +432,7 @@ class _CustomWorkoutBuilderScreenState
     if (result != null && mounted) {
       setState(() {
         _dayExercises[dayIndex].add({
+          'exerciseId': 'custom_${DateTime.now().microsecondsSinceEpoch}_${_dayExercises[dayIndex].length}',
           'name': result.name,
           'sets': result.sets,
           'reps': '${result.reps}',
@@ -445,7 +448,7 @@ class _CustomWorkoutBuilderScreenState
     int reps = int.tryParse('${ex['reps']}') ?? 10;
     int restSeconds = int.tryParse('${ex['rest']}'.replaceAll('s', '')) ?? 60;
 
-    showModalBottomSheet(
+    showPersonalizationBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -516,6 +519,7 @@ class _CustomWorkoutBuilderScreenState
                     onPressed: () {
                       setState(() {
                         _dayExercises[dayIndex][exIndex] = {
+                          'exerciseId': ex['exerciseId'],
                           'name': ex['name'],
                           'sets': sets,
                           'reps': '$reps',
@@ -758,6 +762,8 @@ class _CustomWorkoutBuilderScreenState
   }
 
   Future<void> _saveTemplate() async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.customWorkouts)) return;
+    if (!mounted) return;
     setState(() => _saving = true);
 
     try {
@@ -770,11 +776,11 @@ class _CustomWorkoutBuilderScreenState
         });
       }
 
-      final jsonData = jsonEncode({
+      final jsonData = jsonEncode(WorkoutExercise.normalizeTemplate({
         'planName': _planNameController.text.trim(),
         'daysPerWeek': _daysPerWeek,
         'days': days,
-      });
+      }));
 
       final template = WorkoutTemplateDoc()
         ..createdAt = DateTime.now()
@@ -922,4 +928,10 @@ class _ReviewChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class CustomWorkoutBuilderScreen extends StatelessWidget {
+  const CustomWorkoutBuilderScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _CustomWorkoutBuilderScreenContent());
 }

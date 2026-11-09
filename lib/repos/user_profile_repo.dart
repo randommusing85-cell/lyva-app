@@ -3,15 +3,27 @@ import 'package:lyva_app/db/isar_db.dart';
 import 'package:lyva_app/models/user_profile.dart';
 
 class UserProfileRepo {
+  UserProfileRepo({Future<Isar> Function()? openDatabase})
+      : _openDatabase = openDatabase ?? IsarDb.instance;
+  final Future<Isar> Function() _openDatabase;
+  static final _loadedRevision = Expando<DateTime>('profile revision');
+
+  Stream<UserProfile?> watchProfile() async* {
+    final isar = await _openDatabase();
+    yield* isar.userProfiles.where().watch(fireImmediately: true).map((rows) => rows.firstOrNull);
+  }
+
   /// Get the user profile (there should only be one)
   Future<UserProfile?> getProfile() async {
-    final isar = await IsarDb.instance();
-    return isar.userProfiles.where().findFirst();
+    final isar = await _openDatabase();
+    final profile = await isar.userProfiles.where().findFirst();
+    if (profile != null) _loadedRevision[profile] = profile.updatedAt;
+    return profile;
   }
   
   /// Watch active injuries (reactive stream)
   Stream<List<String>> watchActiveInjuries() async* {
-    final isar = await IsarDb.instance();
+    final isar = await _openDatabase();
     yield* isar.userProfiles
         .where()
         .watch(fireImmediately: true)
@@ -20,9 +32,19 @@ class UserProfileRepo {
   
   /// Save or update the user profile
   Future<void> saveProfile(UserProfile profile) async {
-    final isar = await IsarDb.instance();
+    final isar = await _openDatabase();
     await isar.writeTxn(() async {
+      final current = await isar.userProfiles.where().findFirst();
+      final expected = _loadedRevision[profile];
+      if ((current != null && (expected == null || current.id != profile.id || current.updatedAt != expected)) ||
+          (current == null && expected != null)) {
+        throw StateError('Profile changed or was removed. Reload before saving.');
+      }
+      final now = DateTime.now();
+      profile.updatedAt = current != null && !now.isAfter(current.updatedAt)
+          ? current.updatedAt.add(const Duration(microseconds: 1)) : now;
       await isar.userProfiles.put(profile);
+      _loadedRevision[profile] = profile.updatedAt;
     });
   }
   
@@ -84,7 +106,7 @@ class UserProfileRepo {
 
   /// Delete the user profile (for testing/reset)
   Future<void> deleteProfile() async {
-    final isar = await IsarDb.instance();
+    final isar = await _openDatabase();
     final profile = await getProfile();
     if (profile == null) return;
     

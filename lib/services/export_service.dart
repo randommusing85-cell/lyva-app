@@ -14,7 +14,19 @@ import '../repos/lyva_repo.dart';
 class ExportService {
   final LyvaRepo _repo;
 
-  ExportService(this._repo);
+  ExportService(this._repo, {Future<Directory> Function()? temporaryDirectory,
+    pw.Document Function()? documentFactory})
+      : _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory,
+        _documentFactory = documentFactory ?? pw.Document.new;
+  final Future<Directory> Function() _temporaryDirectory;
+  final pw.Document Function() _documentFactory;
+
+  static String workoutDayLabel(WorkoutSessionDoc session) =>
+      session.dayIndex > 0 ? 'Day ${session.dayIndex}' : 'Unknown day';
+
+  static void _validateRange(DateTime start, DateTime end) {
+    if (end.isBefore(start)) throw ArgumentError('Export end precedes start');
+  }
 
   // ===== CSV EXPORT =====
 
@@ -25,6 +37,7 @@ class ExportService {
     required bool includeMeals,
     required bool includeWorkouts,
   }) async {
+    _validateRange(startDate, endDate);
     final buffer = StringBuffer();
     final dateFormat = DateFormat('yyyy-MM-dd');
     final timeFormat = DateFormat('HH:mm');
@@ -32,28 +45,24 @@ class ExportService {
     if (includeCheckIns) {
       final checkIns = await _repo.getCheckInsInDateRange(startDate, endDate);
       buffer.writeln('=== CHECK-INS ===');
-      buffer.writeln('Date,Weight (kg),Waist (cm),Steps,Mood (1-5),Energy (1-5),Notes');
+      buffer.writeln('Date,Weight (kg),Waist (cm),Steps,Mood (1-5),Energy (1-5),Notes,Sleep (1-5),Stress (1-5),Soreness (1-5),Hunger (1-5)');
       for (final c in checkIns) {
-        final date = dateFormat.format(c.ts);
+        final date = dateFormat.format(c.ts.toLocal());
         final note = (c.note ?? '').replaceAll(',', ';').replaceAll('\n', ' ');
         buffer.writeln(
-          '$date,${c.weightKg},${c.waistCm ?? ''},${c.stepsToday ?? ''},${c.moodScore ?? ''},${c.energyScore ?? ''},$note',
+          '$date,${c.weightKg ?? ''},${c.waistCm ?? ''},${c.stepsToday ?? ''},${c.moodScore ?? ''},${c.energyScore ?? ''},$note,${c.sleepScore ?? ''},${c.stressScore ?? ''},${c.sorenessScore ?? ''},${c.hungerScore ?? ''}',
         );
       }
       buffer.writeln();
     }
 
     if (includeMeals) {
-      final days = endDate.difference(startDate).inDays + 1;
-      final meals = await _repo.getMealsForLastDays(days);
-      final filtered = meals.where((m) =>
-          m.ts.isAfter(startDate.subtract(const Duration(days: 1))) &&
-          m.ts.isBefore(endDate.add(const Duration(days: 1)))).toList();
+      final filtered = await _repo.getMealsInDateRange(startDate, endDate);
       buffer.writeln('=== MEALS ===');
       buffer.writeln('Date,Time,Type,Protein (g),Carbs (g),Fat (g),Calories,Description');
       for (final m in filtered) {
-        final date = dateFormat.format(m.ts);
-        final time = timeFormat.format(m.ts);
+        final date = dateFormat.format(m.ts.toLocal());
+        final time = timeFormat.format(m.ts.toLocal());
         final desc = (m.description ?? '').replaceAll(',', ';').replaceAll('\n', ' ');
         buffer.writeln(
           '$date,$time,${m.mealType},${m.proteinG},${m.carbsG},${m.fatG},${m.calories},$desc',
@@ -65,18 +74,18 @@ class ExportService {
     if (includeWorkouts) {
       final sessions = await _repo.getSessionsInDateRange(startDate, endDate);
       buffer.writeln('=== WORKOUTS ===');
-      buffer.writeln('Date,Day,Completed,Skipped,Skip Reason,Notes');
+      buffer.writeln('Date,Day,Completed,Skipped,Skip Reason,Notes,Perceived exertion (1-5)');
       for (final s in sessions) {
-        final date = dateFormat.format(s.date);
+        final date = dateFormat.format(s.date.toLocal());
         final reason = (s.skipReason ?? '').replaceAll(',', ';');
         final notes = (s.notes ?? '').replaceAll(',', ';').replaceAll('\n', ' ');
         buffer.writeln(
-          '$date,Day ${s.dayIndex + 1},${s.completed ? 'Yes' : 'No'},${s.skipped ? 'Yes' : 'No'},$reason,$notes',
+          '$date,${workoutDayLabel(s)},${s.completed ? 'Yes' : 'No'},${s.skipped ? 'Yes' : 'No'},$reason,$notes,${s.perceivedExertion ?? ''}',
         );
       }
     }
 
-    final dir = await getTemporaryDirectory();
+    final dir = await _temporaryDirectory();
     final file = File('${dir.path}/lyva_export_${dateFormat.format(DateTime.now())}.csv');
     await file.writeAsString(buffer.toString());
     return file;
@@ -92,10 +101,11 @@ class ExportService {
     required bool includeWorkouts,
     String? userName,
   }) async {
-    final pdf = pw.Document();
+    _validateRange(startDate, endDate);
+    final pdf = _documentFactory();
     final dateFormat = DateFormat('MMM d, yyyy');
     final dateRangeText =
-        '${dateFormat.format(startDate)} - ${dateFormat.format(endDate)}';
+        '${dateFormat.format(startDate.toLocal())} - ${dateFormat.format(endDate.toLocal())}';
 
     // Gather data
     List<CheckIn> checkIns = [];
@@ -106,15 +116,13 @@ class ExportService {
       checkIns = await _repo.getCheckInsInDateRange(startDate, endDate);
     }
     if (includeMeals) {
-      final days = endDate.difference(startDate).inDays + 1;
-      final allMeals = await _repo.getMealsForLastDays(days);
-      meals = allMeals.where((m) =>
-          m.ts.isAfter(startDate.subtract(const Duration(days: 1))) &&
-          m.ts.isBefore(endDate.add(const Duration(days: 1)))).toList();
+      meals = await _repo.getMealsInDateRange(startDate, endDate);
     }
     if (includeWorkouts) {
       sessions = await _repo.getSessionsInDateRange(startDate, endDate);
     }
+
+    final weights = checkIns.where((c) => c.weightKg != null && c.weightKg!.isFinite && c.weightKg! > 0).toList();
 
     // Page 1: Summary
     pdf.addPage(
@@ -144,14 +152,14 @@ class ExportService {
 
             if (checkIns.isNotEmpty) ...[
               _pdfMetricRow('Check-ins', '${checkIns.length}'),
-              if (checkIns.length >= 2) ...[
+              if (weights.length >= 2) ...[
                 _pdfMetricRow('Starting Weight',
-                    '${checkIns.last.weightKg.toStringAsFixed(1)} kg'),
+                    '${weights.last.weightKg!.toStringAsFixed(1)} kg'),
                 _pdfMetricRow('Current Weight',
-                    '${checkIns.first.weightKg.toStringAsFixed(1)} kg'),
+                    '${weights.first.weightKg!.toStringAsFixed(1)} kg'),
                 _pdfMetricRow(
                   'Weight Change',
-                  '${(checkIns.first.weightKg - checkIns.last.weightKg).toStringAsFixed(1)} kg',
+                  '${(weights.first.weightKg! - weights.last.weightKg!).toStringAsFixed(1)} kg',
                 ),
               ],
             ],
@@ -184,16 +192,17 @@ class ExportService {
           ),
           build: (context) => [
             pw.TableHelper.fromTextArray(
-              headers: ['Date', 'Weight', 'Waist', 'Steps', 'Mood', 'Energy'],
+              headers: ['Date', 'Weight', 'Waist', 'Steps', 'Mood', 'Energy', 'Recovery'],
               data: checkIns.map((c) {
                 final df = DateFormat('MMM d');
                 return [
-                  df.format(c.ts),
-                  '${c.weightKg.toStringAsFixed(1)} kg',
+                  df.format(c.ts.toLocal()),
+                  c.weightKg == null ? '-' : '${c.weightKg!.toStringAsFixed(1)} kg',
                   c.waistCm != null ? '${c.waistCm} cm' : '-',
                   c.stepsToday?.toString() ?? '-',
                   c.moodScore?.toString() ?? '-',
                   c.energyScore?.toString() ?? '-',
+                  'Sleep:${c.sleepScore ?? '-'} Stress:${c.stressScore ?? '-'} Soreness:${c.sorenessScore ?? '-'} Hunger:${c.hungerScore ?? '-'}',
                 ];
               }).toList(),
               cellStyle: const pw.TextStyle(fontSize: 10),
@@ -225,7 +234,7 @@ class ExportService {
               data: meals.map((m) {
                 final df = DateFormat('MMM d');
                 return [
-                  df.format(m.ts),
+                  df.format(m.ts.toLocal()),
                   m.mealType,
                   '${m.proteinG}g',
                   '${m.carbsG}g',
@@ -258,7 +267,7 @@ class ExportService {
           ),
           build: (context) => [
             pw.TableHelper.fromTextArray(
-              headers: ['Date', 'Day', 'Status', 'Notes'],
+              headers: ['Date', 'Day', 'Status', 'Notes', 'Effort (1-5)'],
               data: sessions.map((s) {
                 final df = DateFormat('MMM d');
                 final status = s.completed
@@ -267,10 +276,11 @@ class ExportService {
                         ? 'Skipped: ${s.skipReason ?? ''}'
                         : 'Pending';
                 return [
-                  df.format(s.date),
-                  'Day ${s.dayIndex + 1}',
+                  df.format(s.date.toLocal()),
+                  workoutDayLabel(s),
                   status,
                   s.notes ?? '',
+                  s.perceivedExertion?.toString() ?? '',
                 ];
               }).toList(),
               cellStyle: const pw.TextStyle(fontSize: 10),
@@ -285,7 +295,7 @@ class ExportService {
       );
     }
 
-    final dir = await getTemporaryDirectory();
+    final dir = await _temporaryDirectory();
     final file = File(
         '${dir.path}/lyva_report_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf');
     await file.writeAsBytes(await pdf.save());
@@ -324,7 +334,7 @@ class ExportService {
     final totalCal = meals.fold<int>(0, (sum, m) => sum + m.calories);
     final days = <String>{};
     for (final m in meals) {
-      days.add(DateFormat('yyyy-MM-dd').format(m.ts));
+      days.add(DateFormat('yyyy-MM-dd').format(m.ts.toLocal()));
     }
     return days.isEmpty ? 0 : totalCal / days.length;
   }

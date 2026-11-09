@@ -1,5 +1,9 @@
+import '../widgets/personalization_boundary.dart';
+import 'workout_facts_screen.dart';
 import 'dart:async';
 import 'dart:convert';
+import '../models/workout_exercise.dart';
+import '../models/workout_plan_snapshot.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,14 +15,14 @@ import '../data/exercise_alternatives.dart';
 import '../theme/app_theme.dart';
 import 'workout_completion_screen.dart';
 
-class TodayWorkoutScreen extends ConsumerStatefulWidget {
-  const TodayWorkoutScreen({super.key});
+class _TodayWorkoutScreenContent extends ConsumerStatefulWidget {
+  const _TodayWorkoutScreenContent();
 
   @override
-  ConsumerState<TodayWorkoutScreen> createState() => _TodayWorkoutScreenState();
+  ConsumerState<_TodayWorkoutScreenContent> createState() => _TodayWorkoutScreenState();
 }
 
-class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
+class _TodayWorkoutScreenState extends ConsumerState<_TodayWorkoutScreenContent> {
   // Track completion checkboxes locally (Phase 1.5 only)
   final Map<String, bool> _done = {};
 
@@ -78,8 +82,9 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
     required BuildContext context,
     required int dayIndex,
     required String workoutTitle,
+    required WorkoutPlanSnapshot plan,
   }) async {
-    final result = await showModalBottomSheet<String?>(
+    final result = await showPersonalizationBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -90,13 +95,14 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
 
     if (result != null && mounted) {
       final repo = ref.read(lyvaRepoProvider);
-      await repo.skipSession(dayIndex: dayIndex, reason: result);
+      await repo.skipSession(dayIndex: dayIndex, reason: result, plan: plan);
 
       // Track analytics
       final analytics = AnalyticsService();
       await analytics.logFeatureUsed(featureName: 'workout_skipped');
 
       ref.invalidate(todayWorkoutDayProvider);
+      ref.invalidate(thisWeekSessionsProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -132,7 +138,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
     final currentName = _swappedExercises[exerciseKey] ?? originalName;
     final isSwapped = _swappedExercises.containsKey(exerciseKey);
 
-    final result = await showModalBottomSheet<String?>(
+    final result = await showPersonalizationBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -175,6 +181,9 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        actions: [IconButton(tooltip: 'Workout facts', icon: const Icon(Icons.help_outline),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const WorkoutFactsScreen())))],
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
@@ -258,13 +267,14 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
               }
 
               // Decode template JSON safely
-              final decoded = jsonDecode(doc.json);
-              if (decoded is! Map) {
-                return const Center(
-                  child: Text('Saved workout plan is corrupted.'),
-                );
+              final Map<String, dynamic> template;
+              try {
+                final decoded = jsonDecode(doc.json);
+                if (decoded is! Map) throw const FormatException('Invalid template');
+                template = WorkoutExercise.normalizeTemplate(Map<String, dynamic>.from(decoded));
+              } on FormatException {
+                return const Center(child: Text('This saved workout cannot be read. Please edit or regenerate it.'));
               }
-              final template = Map<String, dynamic>.from(decoded);
 
               final rawDays = template['days'];
               if (rawDays is! List) {
@@ -281,6 +291,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
               final warmup = template['globalDefaults']?['warmup'];
               final warmupEnabled = warmup is Map && warmup['enabled'] == true;
 
+              final plan = WorkoutPlanSnapshot.capture(doc);
               return asyncDayIndex.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => const Center(
@@ -300,7 +311,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                       break;
                     }
                   }
-                  day ??= (dayIndex - 1 < days.length)
+                  day ??= (dayIndex > 0 && dayIndex - 1 < days.length)
                       ? days[dayIndex - 1]
                       : days.first;
 
@@ -320,14 +331,14 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                   // Count checked for summary
                   int checkedCount = 0;
                   for (final ex in exercises) {
-                    final id = (ex['exerciseId'] ?? '').toString();
-                    final k = 'd$dayIndex:$id';
+                    final id = ex['exerciseId'] as String;
+                    final k = '${plan.planId}:d$dayIndex:$id';
                     if ((_done[k] ?? false) == true) checkedCount++;
                   }
 
                   Future<void> completeWorkout() async {
                     // Show completion dialog with optional notes
-                    final result = await showModalBottomSheet<Map<String, dynamic>?>(
+                    final result = await showPersonalizationBottomSheet<Map<String, dynamic>?>(
                       context: context,
                       isScrollControlled: true,
                       shape: const RoundedRectangleBorder(
@@ -343,20 +354,10 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                     if (result == null) return;
 
                     final notes = result['notes'] as String?;
+                    final perceivedExertion = result['perceivedExertion'] as int?;
 
-                    bool sameDay(DateTime a, DateTime b) =>
-                        a.year == b.year && a.month == b.month && a.day == b.day;
-
-                    final now = DateTime.now();
-                    final last = await repo.getLatestWorkoutSession();
-
-                    // If there's already an open session today, complete it instead of creating another.
-                    if (last != null && sameDay(last.date, now) && last.completed == false) {
-                      await repo.completeSession(last.id, notes: notes);
-                    } else {
-                      final session = await repo.startTodaySession(dayIndex: dayIndex);
-                      await repo.completeSession(session.id, notes: notes);
-                    }
+                    await repo.completeWorkout(plan: plan, dayIndex: dayIndex, notes: notes, perceivedExertion: perceivedExertion);
+                    if (!mounted) return;
 
                     // Track analytics
                     final analytics = AnalyticsService();
@@ -368,6 +369,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                     );
 
                     ref.invalidate(todayWorkoutDayProvider);
+      ref.invalidate(thisWeekSessionsProvider);
 
                     if (mounted) {
                       // Navigate to completion screen
@@ -385,6 +387,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
 
                       // Refresh when coming back
                       ref.invalidate(todayWorkoutDayProvider);
+      ref.invalidate(thisWeekSessionsProvider);
                     }
                   }
 
@@ -394,6 +397,20 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 8),
+
+                        FilledButton(onPressed: () async {
+                          try {
+                            final session = await repo.beginGuidedSession(plan: plan, dayIndex: dayIndex);
+                            if (!context.mounted) return;
+                            await Navigator.pushNamed(context, '/guided-workout', arguments: session.id);
+                            if (!mounted) return;
+                            ref.invalidate(todayWorkoutDayProvider);
+      ref.invalidate(thisWeekSessionsProvider);
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not start the saved session. Refresh and try again.')));
+                          }
+                        }, child: const Text('Open guided session')),
 
                         // Workout Calendar
                         WorkoutCalendar(
@@ -516,8 +533,8 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                         ...List.generate(exercises.length, (i) {
                           final ex = exercises[i];
 
-                          final id = (ex['exerciseId'] ?? 'ex_$i').toString();
-                          final key = 'd$dayIndex:$id';
+                          final id = ex['exerciseId'] as String;
+                          final key = '${plan.planId}:d$dayIndex:$id';
 
                           final originalName = ex['name']?.toString() ?? 'Exercise';
                           final displayName = _swappedExercises[key] ?? originalName;
@@ -615,6 +632,7 @@ class _TodayWorkoutScreenState extends ConsumerState<TodayWorkoutScreen> {
                             context: context,
                             dayIndex: dayIndex,
                             workoutTitle: title,
+                            plan: plan,
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.textSecondary,
@@ -790,6 +808,7 @@ class _ExerciseCard extends StatelessWidget {
               children: [
                 // Number badge / checkmark
                 GestureDetector(
+                  key: ValueKey('complete-exercise-$exerciseNumber'),
                   onTap: onToggleComplete,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -1191,6 +1210,7 @@ class _CompleteWorkoutSheet extends StatefulWidget {
 
 class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
   final _notesCtrl = TextEditingController();
+  int? _perceivedExertion;
 
   @override
   void dispose() {
@@ -1201,7 +1221,7 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
   @override
   Widget build(BuildContext context) {
     final completionPercent =
-        (widget.checkedCount / widget.totalExercises * 100).round();
+        (widget.totalExercises == 0 ? 0 : widget.checkedCount / widget.totalExercises * 100).round();
 
     return SafeArea(
       child: Padding(
@@ -1328,6 +1348,22 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
 
             const SizedBox(height: 20),
 
+            const Text('How hard did it feel? (optional)'),
+            SegmentedButton<int>(
+              emptySelectionAllowed: true,
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: 1, label: Text('1')),
+                ButtonSegment(value: 2, label: Text('2')),
+                ButtonSegment(value: 3, label: Text('3')),
+                ButtonSegment(value: 4, label: Text('4')),
+                ButtonSegment(value: 5, label: Text('5')),
+              ],
+              selected: {if (_perceivedExertion != null) _perceivedExertion!},
+              onSelectionChanged: (values) => setState(() => _perceivedExertion = values.isEmpty ? null : values.first),
+            ),
+            const Text('1 = easy, 5 = maximal. Leave blank if you prefer.'),
+            const SizedBox(height: 16),
             // Notes field
             const Text(
               'How did it go? (optional)',
@@ -1377,6 +1413,7 @@ class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
                     onPressed: () {
                       Navigator.pop(context, {
                         'notes': _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
+                        'perceivedExertion': _perceivedExertion,
                       });
                     },
                     icon: const Icon(Icons.check),
@@ -1612,4 +1649,10 @@ class _SkipWorkoutSheetState extends State<_SkipWorkoutSheet> {
       ),
     );
   }
+}
+
+class TodayWorkoutScreen extends StatelessWidget {
+  const TodayWorkoutScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _TodayWorkoutScreenContent());
 }

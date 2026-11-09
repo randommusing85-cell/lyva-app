@@ -1,20 +1,55 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 
 import '../models/user_profile.dart';
-import '../utils/cycle_calculator.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
-  NotificationService._internal();
+  NotificationService._internal() : _clock = DateTime.now;
+  @visibleForTesting
+  NotificationService.forTesting({DateTime Function()? now})
+    : _clock = now ?? DateTime.now;
+  final DateTime Function() _clock;
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  Future<void> _scheduleQueue = Future<void>.value();
+  static const cycleHorizonDays = 14;
+
+  Future<bool> notificationsEnabled() async {
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      return await android.areNotificationsEnabled() ?? false;
+    }
+    final ios = _notifications
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    if (ios != null) return (await ios.checkPermissions())?.isEnabled ?? false;
+    return false;
+  }
+
+  Future<void> _cancelOwnedSchedules() async {
+    for (final id in [
+      1,
+      ...List.generate(8, (i) => 10 + i),
+      20,
+      21,
+      ...List.generate(cycleHorizonDays, (i) => 100 + i),
+      ...List.generate(cycleHorizonDays, (i) => 200 + i),
+    ]) {
+      await _notifications.cancel(id);
+    }
+  }
 
   /// Initialize the notification service
   Future<void> init() async {
@@ -22,15 +57,18 @@ class NotificationService {
 
     // Initialize timezone
     tz_data.initializeTimeZones();
+    await _configureLocalTimezone();
 
     // Android settings
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
 
     // iOS settings
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     const initSettings = InitializationSettings(
@@ -54,9 +92,12 @@ class NotificationService {
 
   /// Request notification permissions (call on first launch or from settings)
   Future<bool> requestPermissions() async {
+    await init();
     // Android 13+ requires explicit permission
     final androidPlugin = _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidPlugin != null) {
       final granted = await androidPlugin.requestNotificationsPermission();
       return granted ?? false;
@@ -64,7 +105,9 @@ class NotificationService {
 
     // iOS
     final iosPlugin = _notifications
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (iosPlugin != null) {
       final granted = await iosPlugin.requestPermissions(
         alert: true,
@@ -117,8 +160,8 @@ class NotificationService {
     required int minute,
     required List<int> daysOfWeek, // 1 = Monday, 7 = Sunday
   }) async {
-    // Cancel existing workout reminders (IDs 10-16 for each day)
-    for (int i = 10; i <= 16; i++) {
+    // Cancel existing workout reminders (IDs 11-17, plus legacy ID 10)
+    for (int i = 10; i <= 17; i++) {
       await _notifications.cancel(i);
     }
 
@@ -156,45 +199,28 @@ class NotificationService {
     required UserProfile profile,
     required int hour,
     required int minute,
+    tz.TZDateTime? deliveryDate,
+    int? notificationId,
   }) async {
-    if (!profile.trackCycle) return;
+    final id = notificationId ?? 20;
+    final scheduled = deliveryDate ?? _nextInstanceOfTime(hour, minute);
+    await _notifications.cancel(id);
+    if (!profile.trackCycle || !profile.notifyCycle) return;
 
-    final phase = CycleCalculator.getCurrentPhase(profile);
-    if (phase == null) return;
-
-    String title;
-    String body;
-
-    switch (phase) {
-      case CyclePhase.menstrual:
-        title = 'Period Week 🌙';
-        body = 'Go easy today. Light movement is still progress.';
-        break;
-      case CyclePhase.follicular:
-        title = 'Building Phase 🌱';
-        body = 'Great time to push harder! Your body is primed for gains.';
-        break;
-      case CyclePhase.ovulation:
-        title = 'Peak Performance ⭐';
-        body = 'You\'re at your strongest. Make it count!';
-        break;
-      case CyclePhase.luteal:
-        title = 'Wind Down Phase 🍂';
-        body = 'Lower energy is normal. Maintaining is winning.';
-        break;
-    }
+    const title = 'Optional cycle check-in';
+    const body = 'Record how you feel if you want to. Calendar dates do not determine workout intensity.';
 
     // Schedule for tomorrow morning
     await _notifications.zonedSchedule(
-      20, // Cycle notification ID
+      id, // Cycle notification ID
       title,
       body,
-      _nextInstanceOfTime(hour, minute),
+      scheduled,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'cycle_reminder',
-          'Cycle-Aware Tips',
-          channelDescription: 'Training tips based on your cycle phase',
+          'Cycle Check-ins',
+          channelDescription: 'Optional reminders to review your recorded experience',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
@@ -207,68 +233,17 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // Daily repeat
       payload: 'cycle',
     );
   }
 
-  /// Schedule period-approaching notification (ID 21)
-  /// Fires when period is <= 2 days away based on cycle calculator
+  /// Retired period-prediction reminder. Keep cancellation compatibility for
+  /// already scheduled IDs; no calendar heuristic creates replacement alerts.
   Future<void> schedulePeriodApproachingNotification({
-    required UserProfile profile,
-    required int hour,
-    required int minute,
+    required UserProfile profile, required int hour, required int minute,
+    tz.TZDateTime? deliveryDate, int? notificationId,
   }) async {
-    if (!profile.trackCycle) {
-      await _notifications.cancel(21);
-      return;
-    }
-
-    final daysUntil = CycleCalculator.getDaysUntilNextPeriod(profile);
-    if (daysUntil == null || daysUntil > 2) {
-      await _notifications.cancel(21);
-      return;
-    }
-
-    final String title;
-    final String body;
-    if (daysUntil <= 0) {
-      title = 'Period expected today';
-      body = 'Take it easy and listen to your body.';
-    } else if (daysUntil == 1) {
-      title = 'Period expected tomorrow';
-      body = 'You may want to plan lighter workouts.';
-    } else {
-      title = 'Period in 2 days';
-      body = 'Consider adjusting your training intensity.';
-    }
-
-    await _notifications.cancel(21); // Cancel existing
-
-    await _notifications.zonedSchedule(
-      21,
-      title,
-      body,
-      _nextInstanceOfTime(hour, minute),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'cycle_reminder',
-          'Cycle-Aware Tips',
-          channelDescription: 'Training tips based on your cycle phase',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: 'cycle_period_approaching',
-    );
+    await _notifications.cancel(notificationId ?? 21);
   }
 
   /// Cancel all notifications
@@ -281,59 +256,111 @@ class NotificationService {
     await _notifications.cancel(id);
   }
 
+  Future<void> _configureLocalTimezone() async {
+    final timezone = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timezone.identifier));
+  }
+
   /// Setup all notifications based on user profile
-  Future<void> setupNotifications(UserProfile profile) async {
-    if (profile.notifyCheckIn) {
-      await scheduleCheckInReminder(
-        hour: profile.reminderHour,
-        minute: profile.reminderMinute,
-      );
-    } else {
-      await cancel(1);
-    }
+  Future<bool> setupNotifications(UserProfile profile) {
+    // Capture preferences before awaiting; callers may edit the same model later.
+    final snapshot = UserProfile()
+      ..sex = profile.sex
+      ..trackCycle = profile.trackCycle
+      ..notifyCheckIn = profile.notifyCheckIn
+      ..notifyWorkout = profile.notifyWorkout
+      ..notifyCycle = profile.notifyCycle
+      ..scheduledDays = profile.scheduledDays
+      ..reminderHour = profile.reminderHour
+      ..reminderMinute = profile.reminderMinute;
+    final task = _scheduleQueue.then((_) => _replaceSchedules(snapshot));
+    _scheduleQueue = task.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {},
+    );
+    return task;
+  }
 
-    if (profile.notifyWorkout) {
-      // For now, schedule for all training days
-      // You could make this smarter by checking the actual workout schedule
-      final workoutDays = List.generate(
-        profile.trainingDaysPerWeek,
-        (i) => i + 1, // Monday = 1, etc.
-      );
-      await scheduleWorkoutReminder(
-        hour: profile.reminderHour,
-        minute: profile.reminderMinute,
-        daysOfWeek: workoutDays,
-      );
-    } else {
-      for (int i = 10; i <= 16; i++) {
-        await cancel(i);
+  Future<bool> _replaceSchedules(UserProfile profile) async {
+    await init();
+    await _cancelOwnedSchedules();
+    try {
+      await _configureLocalTimezone();
+      if (profile.reminderHour < 0 ||
+          profile.reminderHour > 23 ||
+          profile.reminderMinute < 0 ||
+          profile.reminderMinute > 59) {
+        throw ArgumentError('Invalid reminder time');
       }
-    }
-
-    // Schedule cycle notifications if applicable
-    if (profile.sex == 'female' && profile.trackCycle && profile.notifyCycle) {
-      await scheduleCycleAwareNotification(
-        profile: profile,
-        hour: profile.reminderHour,
-        minute: profile.reminderMinute,
-      );
-      await schedulePeriodApproachingNotification(
-        profile: profile,
-        hour: profile.reminderHour,
-        minute: profile.reminderMinute,
-      );
-    } else {
-      await cancel(20); // Cycle phase tip
-      await cancel(21); // Period approaching
+      if (!await notificationsEnabled()) return false;
+      if (profile.notifyCheckIn) {
+        await scheduleCheckInReminder(
+          hour: profile.reminderHour,
+          minute: profile.reminderMinute,
+        );
+      }
+      if (profile.notifyWorkout) {
+        await scheduleWorkoutReminder(
+          hour: profile.reminderHour,
+          minute: profile.reminderMinute,
+          daysOfWeek: profile.scheduledDaysList
+              .where((d) => d >= 1 && d <= 7)
+              .toSet()
+              .toList(),
+        );
+      }
+      if (profile.sex == 'female' &&
+          profile.trackCycle &&
+          profile.notifyCycle) {
+        final first = _nextInstanceOfTime(
+          profile.reminderHour,
+          profile.reminderMinute,
+        );
+        for (var i = 0; i < cycleHorizonDays; i++) {
+          final date = tz.TZDateTime(
+            tz.local,
+            first.year,
+            first.month,
+            first.day + i,
+            profile.reminderHour,
+            profile.reminderMinute,
+          );
+          await scheduleCycleAwareNotification(
+            profile: profile,
+            hour: profile.reminderHour,
+            minute: profile.reminderMinute,
+            deliveryDate: date,
+            notificationId: 100 + i,
+          );
+        }
+      }
+      return true;
+    } catch (_) {
+      await _cancelOwnedSchedules();
+      rethrow;
     }
   }
 
   // Helper: Get next instance of a specific time
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    final now = tz.TZDateTime.from(_clock(), tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
     if (scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
+      scheduled = tz.TZDateTime(
+        tz.local,
+        scheduled.year,
+        scheduled.month,
+        scheduled.day + 1,
+        hour,
+        minute,
+      );
     }
     return scheduled;
   }
@@ -342,7 +369,14 @@ class NotificationService {
   tz.TZDateTime _nextInstanceOfDayAndTime(int dayOfWeek, int hour, int minute) {
     var scheduled = _nextInstanceOfTime(hour, minute);
     while (scheduled.weekday != dayOfWeek) {
-      scheduled = scheduled.add(const Duration(days: 1));
+      scheduled = tz.TZDateTime(
+        tz.local,
+        scheduled.year,
+        scheduled.month,
+        scheduled.day + 1,
+        hour,
+        minute,
+      );
     }
     return scheduled;
   }

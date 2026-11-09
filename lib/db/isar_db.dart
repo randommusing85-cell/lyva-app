@@ -1,4 +1,6 @@
+import '../models/weekly_review.dart';
 import 'package:isar/isar.dart';
+import '../models/local_memory.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:lyva_app/models/checkin.dart';
 import 'package:lyva_app/models/prime_plan.dart';
@@ -21,6 +23,9 @@ class IsarDb {
 
     final dir = await getApplicationDocumentsDirectory();
     _isar = await Isar.open([
+      WeeklyReviewSchema,
+      MemorySpaceSchema,
+      MemoryEntrySchema,
       CheckInSchema,
       PrimePlanSchema,
       WorkoutTemplateDocSchema,

@@ -1,3 +1,5 @@
+import '../services/personalization_safety.dart';
+import '../widgets/personalization_boundary.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,14 +10,14 @@ import 'workout_lock_explanation_screen.dart';
 import '../services/analytics_service.dart';
 import '../widgets/generating_overlay.dart';
 
-class WorkoutPlanScreen extends ConsumerStatefulWidget {
-  const WorkoutPlanScreen({super.key});
+class _WorkoutPlanScreenContent extends ConsumerStatefulWidget {
+  const _WorkoutPlanScreenContent();
 
   @override
-  ConsumerState<WorkoutPlanScreen> createState() => _WorkoutPlanScreenState();
+  ConsumerState<_WorkoutPlanScreenContent> createState() => _WorkoutPlanScreenState();
 }
 
-class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
+class _WorkoutPlanScreenState extends ConsumerState<_WorkoutPlanScreenContent> {
   String sex = 'male';
   String level = 'intermediate';
   String equipment = 'gym';
@@ -211,17 +213,22 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
                                   'Balancing muscle groups...',
                                 ],
                                 task: () async {
+                                  final profile = await ref.read(userProfileProvider.future);
+                                  if (profile == null) {
+                                    throw StateError('Profile not found');
+                                  }
                                   return await repo.generateWorkoutTemplate(
+                                    profile: profile,
                                     sex: sex,
                                     level: level,
                                     equipment: equipment,
                                     daysPerWeek: daysPerWeek,
                                     sessionDurationMin: 60,
-                                    constraints: 'none',
                                   );
                                 },
                               );
 
+                              if (!mounted) return;
                               setState(() => response = res);
                               // Track analytics
                               if (res?['ok'] == true) {
@@ -232,8 +239,13 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
                                   daysPerWeek: daysPerWeek,
                                 );
                               }
+                            } catch (error) {
+                              if (mounted && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+                                  error is PersonalizationUnavailable ? error.message : 'Workout generation could not complete. No new plan was saved.')));
+                              }
                             } finally {
-                              setState(() => loading = false);
+                              if (mounted) setState(() => loading = false);
                             }
                           },
                     child: Padding(
@@ -388,4 +400,9 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
       ),
     );
   }
+}
+class WorkoutPlanScreen extends StatelessWidget {
+  const WorkoutPlanScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _WorkoutPlanScreenContent());
 }

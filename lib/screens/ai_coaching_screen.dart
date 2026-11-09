@@ -1,3 +1,5 @@
+import '../widgets/personalization_boundary.dart';
+import '../services/routine_workout_answers.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -12,14 +14,14 @@ import '../widgets/coach_message_bubble.dart';
 import '../widgets/ai_insight_card.dart';
 import '../widgets/premium_gate.dart';
 
-class AiCoachingScreen extends ConsumerStatefulWidget {
-  const AiCoachingScreen({super.key});
+class _AiCoachingScreenContent extends ConsumerStatefulWidget {
+  const _AiCoachingScreenContent();
 
   @override
-  ConsumerState<AiCoachingScreen> createState() => _AiCoachingScreenState();
+  ConsumerState<_AiCoachingScreenContent> createState() => _AiCoachingScreenState();
 }
 
-class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
+class _AiCoachingScreenState extends ConsumerState<_AiCoachingScreenContent> {
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _sending = false;
@@ -46,10 +48,19 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
   }
 
   Future<void> _sendMessage(String text) async {
+    final repo = ref.read(lyvaRepoProvider);
+    final generation = repo.chatGeneration;
+    if (RoutineWorkoutAnswers.handles(text)) {
+      await _sendLocalAnswer(text, generation);
+      return;
+    }
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.aiCoaching)) return;
+    if (!mounted) return;
     if (text.trim().isEmpty || _sending) return;
 
     // Check usage cap before sending
     final profile = await ref.read(userProfileProvider.future);
+    if (!mounted) return;
     if (profile != null) {
       final service = ref.read(premiumServiceProvider);
       if (!service.canSendCoachMessage(profile)) {
@@ -60,18 +71,20 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
       }
     }
 
+    if (!mounted || _sending || generation != repo.chatGeneration) return;
     final message = text.trim();
     _inputCtrl.clear();
     setState(() => _sending = true);
 
-    final repo = ref.read(lyvaRepoProvider);
+    final profileRepo = ref.read(userProfileRepoProvider);
+    final analytics = ref.read(analyticsProvider);
 
+    // Save the user and placeholder atomically, only for the active chat.
     // Save user message
     final userMsg = CoachMessage()
       ..ts = DateTime.now()
       ..role = 'user'
       ..content = message;
-    await repo.addCoachMessage(userMsg);
 
     // Save loading placeholder
     final loadingMsg = CoachMessage()
@@ -79,9 +92,8 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
       ..role = 'assistant'
       ..content = ''
       ..isLoading = true;
-    await repo.addCoachMessage(loadingMsg);
-
     try {
+      if (!await repo.beginCoachTurn(userMsg, loadingMsg, generation)) return;
       // Build context
       final context = await repo.buildCoachingContext();
 
@@ -104,6 +116,7 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
               })
           .toList();
 
+      if (repo.chatGeneration != generation) return;
       // Call Cloud Function
       final response = await repo.sendCoachMessage(
         userMessage: message,
@@ -116,31 +129,55 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
       loadingMsg.content = response;
       loadingMsg.isLoading = false;
       loadingMsg.contextSnapshot = jsonEncode(context);
-      await repo.addCoachMessage(loadingMsg);
+      if (!await repo.completeCoachTurn(loadingMsg, generation)) return;
 
       _assistantMessageCount++;
-      ref.read(analyticsProvider).logAiCoachMessageSent();
+      analytics.logAiCoachMessageSent();
 
       // Increment usage counter
-      await ref.read(userProfileRepoProvider).incrementCoachMessageUsage();
-      ref.invalidate(userProfileProvider);
+      await profileRepo.incrementCoachMessageUsage();
+      if (mounted) ref.invalidate(userProfileProvider);
 
       // Extract insights every 5 assistant messages
       if (_assistantMessageCount % 5 == 0) {
-        _extractInsightsInBackground(history, insightMaps);
+        if (mounted) _extractInsightsInBackground(history, insightMaps, generation);
       }
     } catch (e) {
       loadingMsg.content = 'Sorry, I had trouble responding. Please try again.';
       loadingMsg.isLoading = false;
-      await repo.addCoachMessage(loadingMsg);
+      if (!await repo.completeCoachTurn(loadingMsg, generation)) return;
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted && generation == repo.chatGeneration) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _sendLocalAnswer(String text, int generation) async {
+    if (!mounted || _sending || text.trim().isEmpty) return;
+    final repo = ref.read(lyvaRepoProvider);
+    setState(() => _sending = true);
+    _inputCtrl.clear();
+    final user = CoachMessage()..ts = DateTime.now()..role = 'user'..content = text.trim();
+    final reply = CoachMessage()..ts = DateTime.now().add(const Duration(milliseconds: 1))
+      ..role = 'assistant'..content = ''..isLoading = true;
+    try {
+      if (!await repo.beginCoachTurn(user, reply, generation)) return;
+      final result = await ref.read(routineWorkoutAnswersProvider).answer(text);
+      reply.content = '${result.text}\nLocal answer; no AI allowance used.';
+      reply.isLoading = false;
+      await repo.completeCoachTurn(reply, generation);
+    } catch (_) {
+      reply.content = 'Saved workout data could not be read. No AI request was sent.';
+      reply.isLoading = false;
+      await repo.completeCoachTurn(reply, generation);
+    } finally {
+      if (mounted && generation == repo.chatGeneration) setState(() => _sending = false);
     }
   }
 
   Future<void> _extractInsightsInBackground(
     List<Map<String, String>> history,
     List<Map<String, dynamic>> existingInsights,
+    int generation,
   ) async {
     try {
       final repo = ref.read(lyvaRepoProvider);
@@ -149,23 +186,25 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
         existingInsights: existingInsights,
       );
 
+      final pending = <AiInsight>[];
       for (final raw in newInsights) {
         final insight = AiInsight()
           ..ts = DateTime.now()
           ..category = raw['category'] as String? ?? 'training_preference'
           ..content = raw['content'] as String? ?? ''
           ..confidence = (raw['confidence'] as num?)?.toDouble() ?? 0.5;
-        await repo.saveAiInsight(insight);
+        pending.add(insight);
       }
 
-      ref.invalidate(aiInsightsProvider);
+      await repo.saveChatInsights(pending, generation);
+      if (mounted) ref.invalidate(aiInsightsProvider);
     } catch (_) {
       // Silently fail - insight extraction is non-critical
     }
   }
 
   Future<void> _clearChat() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPersonalizationDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Clear Chat'),
@@ -178,12 +217,15 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       await ref.read(lyvaRepoProvider).clearCoachMessages();
+      _assistantMessageCount = 0;
+      if (mounted) setState(() => _sending = false);
     }
   }
 
   void _showUsageLimitDialog() {
-    showDialog(
+    showPersonalizationDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -277,7 +319,7 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
                       insight: insights[i],
                       onDismiss: () async {
                         await ref.read(lyvaRepoProvider).dismissInsight(insights[i].id);
-                        ref.invalidate(aiInsightsProvider);
+                        if (mounted) ref.invalidate(aiInsightsProvider);
                       },
                     ),
                   ),
@@ -474,4 +516,10 @@ class _AiCoachingScreenState extends ConsumerState<AiCoachingScreen> {
       ),
     );
   }
+}
+
+class AiCoachingScreen extends StatelessWidget {
+  const AiCoachingScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _AiCoachingScreenContent());
 }

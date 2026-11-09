@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../models/checkin.dart';
+import '../utils/checkin_input.dart';
+import '../services/checkin_preferences.dart';
 import '../state/providers.dart';
-import '../services/analytics_service.dart';
 import '../theme/app_theme.dart';
 
 class CheckInScreen extends ConsumerStatefulWidget {
@@ -24,8 +24,13 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
   int? _selectedMood;
   int? _selectedEnergy;
+  int? _sleepScore, _stressScore, _sorenessScore, _hungerScore;
 
   bool _saving = false;
+  bool _showMeasurements = false, _preferenceTouched = false;
+  String _frequency = 'manual';
+  String? _message;
+  bool _savingPreference = false;
 
   // Mood options with emojis
   static const _moodOptions = [
@@ -49,12 +54,36 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   void initState() {
     super.initState();
     _autoFillSteps();
+    _loadPreference();
+  }
+
+  Future<void> _loadPreference() async {
+    try {
+      final pref = await ref.read(checkInPreferencesProvider).read();
+      if (!mounted) return;
+      final last = await ref.read(lyvaRepoProvider).latestMeasurementDate();
+      final now = DateTime.now();
+      if (!mounted || _preferenceTouched) return;
+      setState(() { _frequency = pref; _showMeasurements = CheckInPreferences.due(pref, last, now); });
+    } catch (_) {
+      if (mounted) setState(() { _message = 'Measurement preference could not be loaded. All fields are still optional.'; });
+    }
+  }
+  Future<void> _changeFrequency(String value) async {
+    _preferenceTouched = true;
+    setState(() { _savingPreference = true; _message = null; });
+    try {
+      await ref.read(checkInPreferencesProvider).save(value);
+      if (mounted) setState(() { _frequency = value; _showMeasurements = value != 'manual'; });
+    } catch (_) {
+      if (mounted) setState(() { _message = 'Preference was not saved. Try again.'; });
+    } finally { if (mounted) setState(() { _savingPreference = false; }); }
   }
 
   Future<void> _autoFillSteps() async {
     try {
       final service = ref.read(stepTrackingServiceProvider);
-      final authorized = await service.isAuthorized();
+      final authorized = await service.canReadSteps();
       if (!authorized) return;
       final steps = await service.getTodaySteps();
       if (mounted && _stepsCtrl.text.isEmpty && steps > 0) {
@@ -77,34 +106,20 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   num? _tryNum(String s) => num.tryParse(s.trim());
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_saving || !_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
 
     try {
-      final c = CheckIn()
-        ..ts = DateTime.now()
-        ..weightKg = (_tryNum(_weightCtrl.text) ?? 0).toDouble()
-        ..waistCm = (_tryNum(_waistCtrl.text) ?? 0).toDouble()
-        ..stepsToday = int.parse(_stepsCtrl.text.trim())
-        ..note = _buildNote()
-        ..moodScore = _selectedMood
-        ..energyScore = _selectedEnergy;
-
-      final repo = ref.read(lyvaRepoProvider);
-      await repo.addCheckIn(c);
-
-      // Track analytics
-      final analytics = ref.read(analyticsProvider);
-      await analytics.logCheckInCompleted(
-        weightKg: c.weightKg,
-        waistCm: c.waistCm,
-        stepsToday: c.stepsToday,
-        hasNote: c.note != null,
-      );
+      final c = CheckInInput.parse(now: DateTime.now(), weight: _weightCtrl.text, waist: _waistCtrl.text,
+        steps: _stepsCtrl.text, note: _noteCtrl.text, mood: _selectedMood, energy: _selectedEnergy, sleep: _sleepScore, stress: _stressScore, soreness: _sorenessScore, hunger: _hungerScore);
+      await ref.read(lyvaRepoProvider).addCheckIn(c);
+      if (!mounted) return;
 
       // refresh stream consumers
       ref.invalidate(latestCheckInsStreamProvider);
+      ref.invalidate(extendedCheckInsProvider);
+      ref.invalidate(plateauStatusProvider);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,30 +134,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ).showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : 'Check-in was not saved. Your entries are still here; try again.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  String? _buildNote() {
-    final parts = <String>[];
-
-    if (_selectedMood != null) {
-      final moodLabel = _moodOptions.firstWhere((m) => m.$1 == _selectedMood).$3;
-      parts.add('Mood: $moodLabel');
-    }
-
-    if (_selectedEnergy != null) {
-      final energyLabel = _energyOptions.firstWhere((e) => e.$1 == _selectedEnergy).$3;
-      parts.add('Energy: $energyLabel');
-    }
-
-    if (_noteCtrl.text.trim().isNotEmpty) {
-      parts.add(_noteCtrl.text.trim());
-    }
-
-    return parts.isEmpty ? null : parts.join(' | ');
   }
 
   @override
@@ -150,14 +145,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     final today = DateTime.now();
     final dateStr = DateFormat('EEEE, MMM d').format(today);
 
-    return Scaffold(
+    return PopScope(canPop: !_saving, child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
         ),
         title: const Text(
           'Daily Check-in',
@@ -247,7 +242,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 _MoodSelector(
                   options: _moodOptions,
                   selectedValue: _selectedMood,
-                  onSelected: (v) => setState(() => _selectedMood = v),
+                  onSelected: (v) => setState(() => _selectedMood = _selectedMood == v ? null : v),
                 ),
 
                 const SizedBox(height: 24),
@@ -265,22 +260,33 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 _MoodSelector(
                   options: _energyOptions,
                   selectedValue: _selectedEnergy,
-                  onSelected: (v) => setState(() => _selectedEnergy = v),
+                  onSelected: (v) => setState(() => _selectedEnergy = _selectedEnergy == v ? null : v),
                 ),
 
                 const SizedBox(height: 24),
 
-                // Measurements section
-                const Text(
-                  'Measurements',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
+                ExpansionTile(
+                  title: const Text('Recovery signals (optional)'),
+                  subtitle: const Text('Record how you feel. These do not prescribe exercise.'),
+                  children: [
+                    _RecoverySignalSelector(label: 'Sleep quality', lowLabel: 'Poor', highLabel: 'Restful', value: _sleepScore, onChanged: (v) => setState(() => _sleepScore = v)),
+                    _RecoverySignalSelector(label: 'Stress', lowLabel: 'Low', highLabel: 'High', value: _stressScore, onChanged: (v) => setState(() => _stressScore = v)),
+                    _RecoverySignalSelector(label: 'Soreness', lowLabel: 'Fresh', highLabel: 'Very sore', value: _sorenessScore, onChanged: (v) => setState(() => _sorenessScore = v)),
+                    _RecoverySignalSelector(label: 'Hunger', lowLabel: 'Low', highLabel: 'Very hungry', value: _hungerScore, onChanged: (v) => setState(() => _hungerScore = v)),
+                  ],
                 ),
-                const SizedBox(height: 12),
-
+                const Text('All fields are optional. Add at least one item; blank measurements stay unrecorded.'),
+                DropdownButtonFormField<String>(initialValue: _frequency, key: ValueKey(_frequency),
+                  decoration: const InputDecoration(labelText: 'Show measurement fields'),
+                  items: const [DropdownMenuItem(value: 'manual', child: Text('When I choose')),
+                    DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                    DropdownMenuItem(value: 'weekly', child: Text('Weekly'))],
+                  onChanged: _saving || _savingPreference ? null : (value) => _changeFrequency(value!)),
+                const Text('This only changes when fields open. It does not schedule reminders or recommend a frequency.'),
+                if (_message != null) Text(_message!),
+                TextButton(onPressed: _saving ? null : () => setState(() { _preferenceTouched = true; _showMeasurements = !_showMeasurements; }),
+                  child: Text(_showMeasurements ? 'Hide measurements' : 'Add measurements (optional)')),
+                if (_showMeasurements)
                 // Side-by-side weight and waist inputs
                 Row(
                   children: [
@@ -294,7 +300,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: (v) {
                           final n = _tryNum(v ?? '');
-                          if (n == null) return 'Required';
+                          if ((v ?? '').trim().isEmpty) return null;
+                          if (n == null || !n.isFinite) return 'Invalid';
                           if (n < 30 || n > 250) return 'Invalid';
                           return null;
                         },
@@ -311,7 +318,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: (v) {
                           final n = _tryNum(v ?? '');
-                          if (n == null) return 'Required';
+                          if ((v ?? '').trim().isEmpty) return null;
+                          if (n == null || !n.isFinite) return 'Invalid';
                           if (n < 40 || n > 200) return 'Invalid';
                           return null;
                         },
@@ -333,6 +341,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   fullWidth: true,
                   validator: (v) {
                     final n = int.tryParse((v ?? '').trim());
+                    if ((v ?? '').trim().isEmpty) return null;
                     if (n == null) return 'Enter a number';
                     if (n < 0 || n > 100000) return 'Invalid step count';
                     return null;
@@ -366,6 +375,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   child: TextFormField(
                     controller: _noteCtrl,
                     maxLines: 3,
+                    maxLength: 2000,
                     decoration: InputDecoration(
                       hintText: 'How was your sleep? Any hunger cravings? Training notes...',
                       hintStyle: TextStyle(
@@ -424,7 +434,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -571,6 +581,7 @@ class _InputCard extends StatelessWidget {
             children: [
               Expanded(
                 child: TextFormField(
+                  key: ValueKey('checkin-$label'),
                   controller: controller,
                   keyboardType: keyboardType,
                   validator: validator,
@@ -604,6 +615,101 @@ class _InputCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RecoverySignalSelector extends StatelessWidget {
+  final String label;
+  final String lowLabel;
+  final String highLabel;
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  const _RecoverySignalSelector({
+    required this.label,
+    required this.lowLabel,
+    required this.highLabel,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (value != null)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Clear $label',
+                onPressed: () => onChanged(null),
+                icon: const Icon(Icons.close, size: 17),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(5, (index) {
+            final score = index + 1;
+            final selected = value == score;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: index == 4 ? 0 : 6),
+                child: InkWell(
+                  onTap: () => onChanged(score),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$score',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? Colors.white
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 5),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              lowLabel,
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            ),
+            Text(
+              highLabel,
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

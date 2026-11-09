@@ -1,3 +1,4 @@
+import '../widgets/premium_gate.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,11 +9,11 @@ import 'package:intl/intl.dart';
 import '../models/progress_photo.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
-import '../services/analytics_service.dart';
 import '../services/premium_service.dart';
 
 class ProgressPhotoDetailScreen extends ConsumerStatefulWidget {
-  const ProgressPhotoDetailScreen({super.key});
+  const ProgressPhotoDetailScreen({super.key, this.readImage});
+  final Future<List<int>> Function(String path)? readImage;
 
   @override
   ConsumerState<ProgressPhotoDetailScreen> createState() => _ProgressPhotoDetailScreenState();
@@ -22,8 +23,11 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
   bool _analyzing = false;
 
   Future<void> _analyzePhoto(ProgressPhoto photo) async {
+    if (!await requirePremiumAccess(context, ref, PremiumFeature.progressPhotos)) return;
+    if (!mounted) return;
     // Check usage cap before analyzing
     final profile = await ref.read(userProfileProvider.future);
+    if (!mounted) return;
     if (profile != null) {
       final service = ref.read(premiumServiceProvider);
       if (!service.canAnalyzePhoto(profile)) {
@@ -32,11 +36,15 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
       }
     }
 
+    if (_analyzing || !mounted) return;
     setState(() => _analyzing = true);
+    final repo = ref.read(lyvaRepoProvider);
+    final profileRepo = ref.read(userProfileRepoProvider);
+    final analytics = ref.read(analyticsProvider);
+    final operation = repo.beginPhotoAnalysis(photo.id);
 
     try {
-      final repo = ref.read(lyvaRepoProvider);
-      final imageBytes = await File(photo.imagePath).readAsBytes();
+      final imageBytes = await (widget.readImage?.call(photo.imagePath) ?? File(photo.imagePath).readAsBytes());
       final base64Image = base64Encode(imageBytes);
 
       // Build user context
@@ -54,15 +62,16 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
       );
 
       // Update the photo record
-      photo.analysisJson = jsonEncode(analysis);
+      final encoded = jsonEncode(analysis);
+      if (!await repo.completePhotoAnalysis(photo.id, operation, encoded)) return;
+      photo.analysisJson = encoded;
       photo.analysisComplete = true;
       photo.analysisRequested = true;
-      await repo.saveProgressPhoto(photo);
-      ref.read(analyticsProvider).logProgressPhotoAnalyzed();
+      analytics.logProgressPhotoAnalyzed();
 
       // Increment usage counter
-      await ref.read(userProfileRepoProvider).incrementPhotoAnalysisUsage();
-      ref.invalidate(userProfileProvider);
+      await profileRepo.incrementPhotoAnalysisUsage();
+      if (mounted) ref.invalidate(userProfileProvider);
 
       if (mounted) setState(() {});
     } catch (e) {
@@ -104,7 +113,7 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
     final photo = ModalRoute.of(context)!.settings.arguments as ProgressPhoto;
 
     Map<String, dynamic>? analysis;
-    if (photo.analysisComplete && photo.analysisJson != null) {
+    if (ref.watch(personalizationDecisionProvider).asData?.value.allowed == true && photo.analysisComplete && photo.analysisJson != null) {
       analysis = jsonDecode(photo.analysisJson!) as Map<String, dynamic>;
     }
 
@@ -128,7 +137,7 @@ class _ProgressPhotoDetailScreenState extends ConsumerState<ProgressPhotoDetailS
                   ],
                 ),
               );
-              if (confirmed == true) {
+              if (confirmed == true && mounted) {
                 await ref.read(lyvaRepoProvider).deleteProgressPhoto(photo.id);
                 // Delete the file too
                 try { await File(photo.imagePath).delete(); } catch (_) {}

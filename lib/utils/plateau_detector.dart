@@ -16,16 +16,16 @@ class PlateauStatus {
   final bool isPlateaued;
 
   /// Absolute weight change over the analysis window (kg)
-  final double weightChangeKg;
+  final double? weightChangeKg;
 
   /// Most recent 7-day average weight
-  final double week1Avg;
+  final double? week1Avg;
 
   /// Previous 7-day average weight (days 8-14)
-  final double week2Avg;
+  final double? week2Avg;
 
-  /// Earliest 7-day average weight (days 15-21), or 0 if insufficient data
-  final double week3Avg;
+  /// Earliest 7-day average weight (days 15-21), or null if insufficient data
+  final double? week3Avg;
 
   /// Days the user has been in the current plan phase
   final int daysInCurrentPhase;
@@ -44,7 +44,7 @@ class PlateauStatus {
     required this.weightChangeKg,
     required this.week1Avg,
     required this.week2Avg,
-    this.week3Avg = 0,
+    this.week3Avg,
     required this.daysInCurrentPhase,
     required this.currentPhase,
     this.daysRemainingInRefeed,
@@ -81,107 +81,102 @@ class PlateauDetector {
   // ANALYSIS
   // ===========================================================================
 
-  /// Analyze check-in data and determine plateau status.
-  ///
-  /// [checkIns] must be sorted most-recent-first (descending by ts).
-  /// [currentPlan] is the active nutrition plan.
+  /// Uses local calendar days, one latest valid observation per day, and only
+  /// observations from the current phase. Input order does not matter.
   static PlateauStatus analyze({
     required List<CheckIn> checkIns,
     required PrimePlan currentPlan,
+    DateTime? now,
   }) {
+    final clock = now ?? DateTime.now();
     final phase = currentPlan.phase;
     final phaseStart = currentPlan.phaseStartedAt ?? currentPlan.createdAt;
-    final daysInPhase = DateTime.now().difference(phaseStart).inDays;
-
-    // If in refeed phase, report refeed status instead of plateau
-    if (phase == 'refeed') {
-      final remaining = daysRemainingInRefeed(currentPlan);
-      return PlateauStatus(
-        isPlateaued: false,
-        weightChangeKg: 0,
-        week1Avg: _weekAvg(checkIns, 0, 7),
-        week2Avg: _weekAvg(checkIns, 7, 14),
-        daysInCurrentPhase: daysInPhase,
-        currentPhase: phase,
-        daysRemainingInRefeed: remaining,
-        summary: remaining > 0
-            ? 'Refeed break in progress — $remaining days remaining.'
-            : 'Refeed break complete! Ready to resume deficit.',
-      );
-    }
-
-    // Need sufficient data for analysis
-    if (checkIns.length < minCheckInsRequired) {
-      return PlateauStatus(
-        isPlateaued: false,
-        weightChangeKg: 0,
-        week1Avg: 0,
-        week2Avg: 0,
-        daysInCurrentPhase: daysInPhase,
-        currentPhase: phase,
-        summary: 'Not enough check-in data yet (${checkIns.length}/$minCheckInsRequired).',
-      );
-    }
-
-    // Must be in deficit for at least 3 weeks before detecting plateau
-    if (phase == 'deficit' && daysInPhase < minDaysInDeficit) {
-      return PlateauStatus(
-        isPlateaued: false,
-        weightChangeKg: 0,
-        week1Avg: _weekAvg(checkIns, 0, 7),
-        week2Avg: _weekAvg(checkIns, 7, 14),
-        daysInCurrentPhase: daysInPhase,
-        currentPhase: phase,
-        summary: 'Too early to assess — ${minDaysInDeficit - daysInPhase} more days in deficit needed.',
-      );
-    }
-
-    // Calculate rolling 7-day averages for 3 weeks
-    final week1 = _weekAvg(checkIns, 0, 7);   // Most recent week
-    final week2 = _weekAvg(checkIns, 7, 14);  // Previous week
-    final week3 = checkIns.length >= 21
-        ? _weekAvg(checkIns, 14, 21)
-        : week2; // Fall back to week2 if not enough data for week3
-
-    final totalChange = (week3 - week1).abs();
-
-    // Check if weight is actually stalled
-    final weightStalled = totalChange < stallThresholdKg;
-
-    // Guard against false positives: if waist is dropping significantly,
-    // the user may be recomping (losing fat, gaining muscle)
-    bool waistDropping = false;
-    if (checkIns.length >= 14) {
-      final waist1 = _weekAvgWaist(checkIns, 0, 7);
-      final waist3 = checkIns.length >= 21
-          ? _weekAvgWaist(checkIns, 14, 21)
-          : _weekAvgWaist(checkIns, 7, 14);
-      if (waist1 > 0 && waist3 > 0) {
-        waistDropping = (waist3 - waist1) > waistRecompThresholdCm;
+    final daysInPhase = (_day(clock) - _day(phaseStart)).clamp(0, 1000000);
+    final daily = <int, CheckIn>{};
+    for (final entry in checkIns) {
+      final age = _day(clock) - _day(entry.ts);
+      if (entry.ts.isAfter(clock) ||
+          entry.ts.isBefore(phaseStart) ||
+          age < 0 ||
+          age >= 21 ||
+          entry.weightKg == null ||
+          !entry.weightKg!.isFinite ||
+          entry.weightKg! <= 0) {
+        continue;
+      }
+      final previous = daily[age];
+      if (previous == null ||
+          entry.ts.isAfter(previous.ts) ||
+          (entry.ts == previous.ts && entry.id > previous.id)) {
+        daily[age] = entry;
       }
     }
-
-    final isPlateaued = weightStalled && !waistDropping;
-
-    String summary;
-    if (isPlateaued) {
-      summary = 'Weight has stalled (${totalChange.toStringAsFixed(1)}kg change over 3 weeks). '
-          'A maintenance break may help reset your metabolism.';
-    } else if (waistDropping) {
-      summary = 'Weight is stable but waist is shrinking — you may be recomping. Keep going!';
-    } else {
-      summary = 'On track — weight is changing as expected.';
-    }
-
-    return PlateauStatus(
-      isPlateaued: isPlateaued,
-      weightChangeKg: totalChange,
-      week1Avg: week1,
-      week2Avg: week2,
-      week3Avg: week3,
+    final weeks = List.generate(
+      3,
+      (week) => daily.entries
+          .where((e) => e.key >= week * 7 && e.key < (week + 1) * 7)
+          .map((e) => e.value)
+          .toList(),
+    );
+    final averages = weeks.map(_averageWeight).toList();
+    PlateauStatus result(
+      String summary, {
+      bool stalled = false,
+      double? change,
+      int? remaining,
+    }) => PlateauStatus(
+      isPlateaued: stalled,
+      weightChangeKg: change,
+      week1Avg: averages[0],
+      week2Avg: averages[1],
+      week3Avg: averages[2],
       daysInCurrentPhase: daysInPhase,
       currentPhase: phase,
+      daysRemainingInRefeed: remaining,
       summary: summary,
+    );
+
+    if (phase == 'refeed') {
+      final remaining = daysRemainingInRefeed(currentPlan, now: clock);
+      return result(
+        remaining > 0
+            ? 'Refeed break in progress - $remaining days remaining.'
+            : 'Refeed break complete! Ready to resume deficit.',
+        remaining: remaining,
+      );
+    }
+    if (phase != 'deficit' && phase != 'resumed_deficit') {
+      return result(
+        'Plateau assessment is only available during a deficit phase.',
+      );
+    }
+    if (phaseStart.isAfter(clock) || daysInPhase < minDaysInDeficit) {
+      return result(
+        'Too early to assess - ${minDaysInDeficit - daysInPhase} more days in deficit needed.',
+      );
+    }
+    // Preserve the existing 14-observation minimum, counting distinct valid days.
+    // Every calendar week must be represented; never substitute another week.
+    if (daily.length < minCheckInsRequired ||
+        weeks.any((week) => week.isEmpty)) {
+      return result(
+        'Not enough dated check-in data: ${daily.length}/$minCheckInsRequired days across the last 3 weeks.',
+      );
+    }
+    final totalChange = (averages[2]! - averages[0]!).abs();
+    final waist1 = _averageWaist(weeks[0]);
+    final waist3 = _averageWaist(weeks[2]);
+    final waistDropping =
+        waist1 != null && waist3 != null && (waist3 - waist1) > waistRecompThresholdCm;
+    final stalled = totalChange < stallThresholdKg && !waistDropping;
+    return result(
+      stalled
+          ? 'Recorded weight averages changed by ${totalChange.toStringAsFixed(1)}kg across the last 3 calendar weeks.'
+          : waistDropping
+          ? 'Weight is stable while recorded waist measurements decreased.'
+          : 'Recorded weight averages changed across the observation window.',
+      stalled: stalled,
+      change: totalChange,
     );
   }
 
@@ -201,7 +196,10 @@ class PlateauDetector {
       age: profile.age,
       sex: profile.sex,
     );
-    return calculateTDEE(bmr: bmr, trainingDaysPerWeek: trainingDaysPerWeek).round();
+    return calculateTDEE(
+      bmr: bmr,
+      trainingDaysPerWeek: trainingDaysPerWeek,
+    ).round();
   }
 
   // ===========================================================================
@@ -210,10 +208,10 @@ class PlateauDetector {
 
   /// Calculate how many days remain in the refeed phase.
   /// Returns 0 if refeed is complete or plan is not in refeed phase.
-  static int daysRemainingInRefeed(PrimePlan plan) {
+  static int daysRemainingInRefeed(PrimePlan plan, {DateTime? now}) {
     if (plan.phase != 'refeed') return 0;
     final start = plan.phaseStartedAt ?? plan.createdAt;
-    final elapsed = DateTime.now().difference(start).inDays;
+    final elapsed = _day(now ?? DateTime.now()) - _day(start);
     return (refeedDurationDays - elapsed).clamp(0, refeedDurationDays);
   }
 
@@ -227,24 +225,27 @@ class PlateauDetector {
   // PRIVATE HELPERS
   // ===========================================================================
 
-  /// Compute average weight for a slice of check-ins.
-  /// [start] and [end] are indices (0 = most recent).
-  static double _weekAvg(List<CheckIn> checkIns, int start, int end) {
-    final slice = checkIns.skip(start).take(end - start).toList();
-    if (slice.isEmpty) return 0;
-    final sum = slice.fold<double>(0, (s, c) => s + c.weightKg);
-    return sum / slice.length;
+  // UTC midnight is used only as a date ordinal, avoiding DST duration errors.
+  static int _day(DateTime value) {
+    final local = value.toLocal();
+    return DateTime.utc(
+          local.year,
+          local.month,
+          local.day,
+        ).millisecondsSinceEpoch ~/
+        Duration.millisecondsPerDay;
   }
 
-  /// Compute average waist measurement for a slice of check-ins.
-  static double _weekAvgWaist(List<CheckIn> checkIns, int start, int end) {
-    final slice = checkIns
-        .skip(start)
-        .take(end - start)
-        .where((c) => c.waistCm > 0)
+  static double? _averageWeight(List<CheckIn> entries) => entries.isEmpty
+      ? null
+      : entries.fold<double>(0, (sum, c) => sum + c.weightKg!) / entries.length;
+
+  static double? _averageWaist(List<CheckIn> entries) {
+    final valid = entries
+        .where((c) => c.waistCm != null && c.waistCm!.isFinite && c.waistCm! > 0)
         .toList();
-    if (slice.isEmpty) return 0;
-    final sum = slice.fold<double>(0, (s, c) => s + c.waistCm);
-    return sum / slice.length;
+    return valid.isEmpty
+        ? null
+        : valid.fold<double>(0, (sum, c) => sum + c.waistCm!) / valid.length;
   }
 }

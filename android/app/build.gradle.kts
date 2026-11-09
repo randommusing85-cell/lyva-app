@@ -20,7 +20,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     signingConfigs {
-        create("release") {
+        if (keystorePropertiesFile.exists()) create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String
             keyPassword = keystoreProperties["keyPassword"] as String
             storeFile = file(keystoreProperties["storeFile"] as String)
@@ -32,7 +32,7 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
@@ -62,4 +62,12 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
+// Do not allow an unsigned release to appear successful when secrets are absent.
+if (!keystorePropertiesFile.exists()) {
+    gradle.taskGraph.whenReady {
+        if (allTasks.any { it.project == project && it.name.contains("Release", ignoreCase = true) }) {
+            throw GradleException("Release signing is not configured. Supply authorized release signing separately; debug builds need no release secrets.")
+        }
+    }
 }

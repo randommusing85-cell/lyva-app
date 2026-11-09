@@ -63,3 +63,18 @@ app.*.map.json
 android/key.properties
 **/*.jks
 **/*.keystore
+
+# Private transfer excludes local credentials, data and distribution automation.
+.claude/
+.env
+.env.*
+*.p8
+*.p12
+*.pem
+*.mobileprovision
+*.isar
+*.sqlite*
+*.ipa
+*.apk
+*.aab
+*.xcarchive/

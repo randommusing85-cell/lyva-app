@@ -22,33 +22,53 @@ const CheckInSchema = CollectionSchema(
       name: r'energyScore',
       type: IsarType.long,
     ),
-    r'moodScore': PropertySchema(
+    r'hungerScore': PropertySchema(
       id: 1,
+      name: r'hungerScore',
+      type: IsarType.long,
+    ),
+    r'moodScore': PropertySchema(
+      id: 2,
       name: r'moodScore',
       type: IsarType.long,
     ),
     r'note': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'note',
       type: IsarType.string,
     ),
+    r'sleepScore': PropertySchema(
+      id: 4,
+      name: r'sleepScore',
+      type: IsarType.long,
+    ),
+    r'sorenessScore': PropertySchema(
+      id: 5,
+      name: r'sorenessScore',
+      type: IsarType.long,
+    ),
     r'stepsToday': PropertySchema(
-      id: 3,
+      id: 6,
       name: r'stepsToday',
       type: IsarType.long,
     ),
+    r'stressScore': PropertySchema(
+      id: 7,
+      name: r'stressScore',
+      type: IsarType.long,
+    ),
     r'ts': PropertySchema(
-      id: 4,
+      id: 8,
       name: r'ts',
       type: IsarType.dateTime,
     ),
     r'waistCm': PropertySchema(
-      id: 5,
+      id: 9,
       name: r'waistCm',
       type: IsarType.double,
     ),
     r'weightKg': PropertySchema(
-      id: 6,
+      id: 10,
       name: r'weightKg',
       type: IsarType.double,
     )
@@ -103,12 +123,16 @@ void _checkInSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeLong(offsets[0], object.energyScore);
-  writer.writeLong(offsets[1], object.moodScore);
-  writer.writeString(offsets[2], object.note);
-  writer.writeLong(offsets[3], object.stepsToday);
-  writer.writeDateTime(offsets[4], object.ts);
-  writer.writeDouble(offsets[5], object.waistCm);
-  writer.writeDouble(offsets[6], object.weightKg);
+  writer.writeLong(offsets[1], object.hungerScore);
+  writer.writeLong(offsets[2], object.moodScore);
+  writer.writeString(offsets[3], object.note);
+  writer.writeLong(offsets[4], object.sleepScore);
+  writer.writeLong(offsets[5], object.sorenessScore);
+  writer.writeLong(offsets[6], object.stepsToday);
+  writer.writeLong(offsets[7], object.stressScore);
+  writer.writeDateTime(offsets[8], object.ts);
+  writer.writeDouble(offsets[9], object.waistCm);
+  writer.writeDouble(offsets[10], object.weightKg);
 }
 
 CheckIn _checkInDeserialize(
@@ -119,13 +143,17 @@ CheckIn _checkInDeserialize(
 ) {
   final object = CheckIn();
   object.energyScore = reader.readLongOrNull(offsets[0]);
+  object.hungerScore = reader.readLongOrNull(offsets[1]);
   object.id = id;
-  object.moodScore = reader.readLongOrNull(offsets[1]);
-  object.note = reader.readStringOrNull(offsets[2]);
-  object.stepsToday = reader.readLong(offsets[3]);
-  object.ts = reader.readDateTime(offsets[4]);
-  object.waistCm = reader.readDouble(offsets[5]);
-  object.weightKg = reader.readDouble(offsets[6]);
+  object.moodScore = reader.readLongOrNull(offsets[2]);
+  object.note = reader.readStringOrNull(offsets[3]);
+  object.sleepScore = reader.readLongOrNull(offsets[4]);
+  object.sorenessScore = reader.readLongOrNull(offsets[5]);
+  object.stepsToday = reader.readLongOrNull(offsets[6]);
+  object.stressScore = reader.readLongOrNull(offsets[7]);
+  object.ts = reader.readDateTime(offsets[8]);
+  object.waistCm = reader.readDoubleOrNull(offsets[9]);
+  object.weightKg = reader.readDoubleOrNull(offsets[10]);
   return object;
 }
 
@@ -141,15 +169,23 @@ P _checkInDeserializeProp<P>(
     case 1:
       return (reader.readLongOrNull(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 3:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 4:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 5:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 6:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
+    case 7:
+      return (reader.readLongOrNull(offset)) as P;
+    case 8:
+      return (reader.readDateTime(offset)) as P;
+    case 9:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 10:
+      return (reader.readDoubleOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -401,6 +437,75 @@ extension CheckInQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'energyScore',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> hungerScoreIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'hungerScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> hungerScoreIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'hungerScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> hungerScoreEqualTo(
+      int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hungerScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> hungerScoreGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'hungerScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> hungerScoreLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'hungerScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> hungerScoreBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'hungerScore',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -676,8 +781,164 @@ extension CheckInQueryFilter
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sleepScoreIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'sleepScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sleepScoreIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'sleepScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sleepScoreEqualTo(
+      int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sleepScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sleepScoreGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sleepScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sleepScoreLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sleepScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sleepScoreBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sleepScore',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sorenessScoreIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'sorenessScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition>
+      sorenessScoreIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'sorenessScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sorenessScoreEqualTo(
+      int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sorenessScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition>
+      sorenessScoreGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sorenessScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sorenessScoreLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sorenessScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> sorenessScoreBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sorenessScore',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stepsTodayIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'stepsToday',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stepsTodayIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'stepsToday',
+      ));
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stepsTodayEqualTo(
-      int value) {
+      int? value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'stepsToday',
@@ -687,7 +948,7 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stepsTodayGreaterThan(
-    int value, {
+    int? value, {
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
@@ -700,7 +961,7 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stepsTodayLessThan(
-    int value, {
+    int? value, {
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
@@ -713,14 +974,83 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stepsTodayBetween(
-    int lower,
-    int upper, {
+    int? lower,
+    int? upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'stepsToday',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stressScoreIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'stressScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stressScoreIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'stressScore',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stressScoreEqualTo(
+      int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'stressScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stressScoreGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'stressScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stressScoreLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'stressScore',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> stressScoreBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'stressScore',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -782,8 +1112,24 @@ extension CheckInQueryFilter
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> waistCmIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'waistCm',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> waistCmIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'waistCm',
+      ));
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> waistCmEqualTo(
-    double value, {
+    double? value, {
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
@@ -796,7 +1142,7 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> waistCmGreaterThan(
-    double value, {
+    double? value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
@@ -811,7 +1157,7 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> waistCmLessThan(
-    double value, {
+    double? value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
@@ -826,8 +1172,8 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> waistCmBetween(
-    double lower,
-    double upper, {
+    double? lower,
+    double? upper, {
     bool includeLower = true,
     bool includeUpper = true,
     double epsilon = Query.epsilon,
@@ -844,8 +1190,24 @@ extension CheckInQueryFilter
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> weightKgIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'weightKg',
+      ));
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> weightKgIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'weightKg',
+      ));
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> weightKgEqualTo(
-    double value, {
+    double? value, {
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
@@ -858,7 +1220,7 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> weightKgGreaterThan(
-    double value, {
+    double? value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
@@ -873,7 +1235,7 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> weightKgLessThan(
-    double value, {
+    double? value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
@@ -888,8 +1250,8 @@ extension CheckInQueryFilter
   }
 
   QueryBuilder<CheckIn, CheckIn, QAfterFilterCondition> weightKgBetween(
-    double lower,
-    double upper, {
+    double? lower,
+    double? upper, {
     bool includeLower = true,
     bool includeUpper = true,
     double epsilon = Query.epsilon,
@@ -926,6 +1288,18 @@ extension CheckInQuerySortBy on QueryBuilder<CheckIn, CheckIn, QSortBy> {
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortByHungerScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hungerScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortByHungerScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hungerScore', Sort.desc);
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortByMoodScore() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'moodScore', Sort.asc);
@@ -950,6 +1324,30 @@ extension CheckInQuerySortBy on QueryBuilder<CheckIn, CheckIn, QSortBy> {
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortBySleepScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sleepScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortBySleepScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sleepScore', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortBySorenessScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sorenessScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortBySorenessScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sorenessScore', Sort.desc);
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortByStepsToday() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'stepsToday', Sort.asc);
@@ -959,6 +1357,18 @@ extension CheckInQuerySortBy on QueryBuilder<CheckIn, CheckIn, QSortBy> {
   QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortByStepsTodayDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'stepsToday', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortByStressScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'stressScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> sortByStressScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'stressScore', Sort.desc);
     });
   }
 
@@ -1013,6 +1423,18 @@ extension CheckInQuerySortThenBy
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenByHungerScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hungerScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenByHungerScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hungerScore', Sort.desc);
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -1049,6 +1471,30 @@ extension CheckInQuerySortThenBy
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenBySleepScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sleepScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenBySleepScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sleepScore', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenBySorenessScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sorenessScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenBySorenessScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sorenessScore', Sort.desc);
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenByStepsToday() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'stepsToday', Sort.asc);
@@ -1058,6 +1504,18 @@ extension CheckInQuerySortThenBy
   QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenByStepsTodayDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'stepsToday', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenByStressScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'stressScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QAfterSortBy> thenByStressScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'stressScore', Sort.desc);
     });
   }
 
@@ -1106,6 +1564,12 @@ extension CheckInQueryWhereDistinct
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QDistinct> distinctByHungerScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'hungerScore');
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QDistinct> distinctByMoodScore() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'moodScore');
@@ -1119,9 +1583,27 @@ extension CheckInQueryWhereDistinct
     });
   }
 
+  QueryBuilder<CheckIn, CheckIn, QDistinct> distinctBySleepScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sleepScore');
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QDistinct> distinctBySorenessScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sorenessScore');
+    });
+  }
+
   QueryBuilder<CheckIn, CheckIn, QDistinct> distinctByStepsToday() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'stepsToday');
+    });
+  }
+
+  QueryBuilder<CheckIn, CheckIn, QDistinct> distinctByStressScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'stressScore');
     });
   }
 
@@ -1158,6 +1640,12 @@ extension CheckInQueryProperty
     });
   }
 
+  QueryBuilder<CheckIn, int?, QQueryOperations> hungerScoreProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'hungerScore');
+    });
+  }
+
   QueryBuilder<CheckIn, int?, QQueryOperations> moodScoreProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'moodScore');
@@ -1170,9 +1658,27 @@ extension CheckInQueryProperty
     });
   }
 
-  QueryBuilder<CheckIn, int, QQueryOperations> stepsTodayProperty() {
+  QueryBuilder<CheckIn, int?, QQueryOperations> sleepScoreProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sleepScore');
+    });
+  }
+
+  QueryBuilder<CheckIn, int?, QQueryOperations> sorenessScoreProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sorenessScore');
+    });
+  }
+
+  QueryBuilder<CheckIn, int?, QQueryOperations> stepsTodayProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'stepsToday');
+    });
+  }
+
+  QueryBuilder<CheckIn, int?, QQueryOperations> stressScoreProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'stressScore');
     });
   }
 
@@ -1182,13 +1688,13 @@ extension CheckInQueryProperty
     });
   }
 
-  QueryBuilder<CheckIn, double, QQueryOperations> waistCmProperty() {
+  QueryBuilder<CheckIn, double?, QQueryOperations> waistCmProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'waistCm');
     });
   }
 
-  QueryBuilder<CheckIn, double, QQueryOperations> weightKgProperty() {
+  QueryBuilder<CheckIn, double?, QQueryOperations> weightKgProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'weightKg');
     });

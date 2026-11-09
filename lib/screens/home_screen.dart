@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -7,12 +6,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
 import '../models/meal_log.dart';
-import '../models/workout_template_doc.dart';
 import '../services/premium_service.dart';
 import '../state/providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/circular_progress_ring.dart';
 import '../widgets/cycle_phase_card.dart';
+import '../widgets/today_action_card.dart';
 import '../widgets/diet_phase_card.dart';
 import '../widgets/postpartum_status_card.dart';
 
@@ -105,6 +104,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.invalidate(latestCheckInsStreamProvider);
     ref.invalidate(todayMealsStreamProvider);
     ref.invalidate(thisWeekSessionsProvider);
+    ref.invalidate(todayActionProvider);
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
@@ -116,11 +116,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final dateStr = DateFormat('MMMM d').format(now);
 
     final profileAsync = ref.watch(userProfileProvider);
-    final workoutTemplateAsync = ref.watch(latestWorkoutTemplateProvider);
     final checkInsAsync = ref.watch(latestCheckInsStreamProvider);
     final weekSessionsAsync = ref.watch(thisWeekSessionsProvider);
     final planAsync = ref.watch(activePlanProvider);
-    final cyclePhaseAsync = ref.watch(currentCyclePhaseProvider);
     final todayMealsAsync = ref.watch(todayMealsStreamProvider);
 
     return Scaffold(
@@ -156,37 +154,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
-                      _CyclePhaseBadge(cyclePhaseAsync: cyclePhaseAsync),
+                      _CyclePhaseBadge(tracking: profileAsync.valueOrNull?.trackCycle == true),
                     ],
                   ),
 
                   const SizedBox(height: 20),
-
-                  // Motivational quote card (rotates each visit)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('✨', style: TextStyle(fontSize: 16)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _currentQuote,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
 
                   // Personalized Greeting
                   profileAsync.when(
@@ -229,32 +201,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Cycle Phase (moved here - shows if tracking cycles)
-                  const CyclePhaseCard(),
-
+                  if (ref.watch(personalizationDecisionProvider).asData?.value.allowed == true)
+                    const TodayActionCard()
+                  else
+                    const Card(child: Padding(padding: EdgeInsets.all(16), child: Text(
+                      'Personalized workout guidance is unavailable. Your saved records are preserved; check-ins and meal logging remain available.'))),
                   const SizedBox(height: 12),
-
-                  // Diet Phase (shows for cutting users: plateau alerts, refeed status)
-                  const DietPhaseCard(),
-
-                  const SizedBox(height: 16),
-
-                  // Progress rings row
-                  _ProgressRingsRow(
-                    checkInsAsync: checkInsAsync,
-                    todayMealsAsync: todayMealsAsync,
-                    weekSessionsAsync: weekSessionsAsync,
-                    planAsync: planAsync,
-                    profileAsync: profileAsync,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Today's Workout Card
-                  _TodayWorkoutCard(workoutTemplateAsync: workoutTemplateAsync),
-
-                  const SizedBox(height: 16),
-
                   // Quick Actions Row (Check-in + Nutrition)
                   Row(
                     children: [
@@ -277,6 +229,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Cycle Phase (moved here - shows if tracking cycles)
+                  const CyclePhaseCard(),
+
+                  const SizedBox(height: 12),
+
+                  // Diet Phase (shows for cutting users: plateau alerts, refeed status)
+                  const DietPhaseCard(),
+
+                  const SizedBox(height: 16),
+
+                  // Progress rings row
+                  _ProgressRingsRow(
+                    checkInsAsync: checkInsAsync,
+                    todayMealsAsync: todayMealsAsync,
+                    weekSessionsAsync: weekSessionsAsync,
+                    planAsync: planAsync,
+                    profileAsync: profileAsync,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Motivational quote card (rotates each visit)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('✨', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _currentQuote,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
 
                   // Premium Quick Actions (AI Coach + Progress Photos)
                   const _PremiumQuickActions(),
@@ -324,6 +323,7 @@ class _ProgressRingsRow extends ConsumerWidget {
 
     final plan = planAsync.valueOrNull;
     final targetCalories = plan?.calories ?? 1500;
+    final guidanceAllowed = ref.watch(personalizationDecisionProvider).asData?.value.allowed == true;
 
     // Get today's steps from health platform (Apple Health / Health Connect)
     final todaySteps = ref.watch(todayStepsProvider).valueOrNull ?? 0;
@@ -352,19 +352,19 @@ class _ProgressRingsRow extends ConsumerWidget {
           _ProgressRingItem(
             value: todayCalories.toString(),
             label: 'calories',
-            progress: (todayCalories / targetCalories).clamp(0.0, 1.0),
+            progress: guidanceAllowed ? (todayCalories / targetCalories).clamp(0.0, 1.0) : 0,
             color: AppColors.caloriesRing,
           ),
           _ProgressRingItem(
             value: _formatSteps(todaySteps),
             label: 'steps',
-            progress: (todaySteps / 8000).clamp(0.0, 1.0),
+            progress: guidanceAllowed ? (todaySteps / 8000).clamp(0.0, 1.0) : 0,
             color: AppColors.stepsRing,
           ),
           _ProgressRingItem(
-            value: '$completedWorkouts / $targetWorkouts',
+            value: guidanceAllowed ? '$completedWorkouts / $targetWorkouts' : '$completedWorkouts',
             label: 'workouts',
-            progress: (completedWorkouts / targetWorkouts).clamp(0.0, 1.0),
+            progress: guidanceAllowed ? (completedWorkouts / targetWorkouts).clamp(0.0, 1.0) : 0,
             color: AppColors.workoutsRing,
           ),
         ],
@@ -423,130 +423,6 @@ class _ProgressRingItem extends StatelessWidget {
   }
 }
 
-/// Today's workout card matching Figma design
-class _TodayWorkoutCard extends StatelessWidget {
-  final AsyncValue<WorkoutTemplateDoc?> workoutTemplateAsync;
-
-  const _TodayWorkoutCard({required this.workoutTemplateAsync});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return workoutTemplateAsync.when(
-      data: (templateDoc) {
-        // Parse the JSON from the WorkoutTemplateDoc
-        Map<String, dynamic>? templateData;
-        if (templateDoc != null) {
-          try {
-            templateData = jsonDecode(templateDoc.json) as Map<String, dynamic>;
-          } catch (_) {
-            templateData = null;
-          }
-        }
-
-        final workoutTitle = templateData != null
-            ? (templateData['days']?[0]?['title'] ?? 'Upper Body')
-            : 'No workout planned';
-        final duration = templateData != null
-            ? '${templateData['sessionDurationMin'] ?? 45} min'
-            : '';
-        final exerciseCount = templateData != null
-            ? (templateData['days']?[0]?['exercises'] as List?)?.length ?? 4
-            : 0;
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: InkWell(
-            onTap: () {
-              if (templateData != null) {
-                Navigator.pushNamed(context, '/today-workout');
-              } else {
-                Navigator.pushNamed(context, '/workout');
-              }
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Today's Workout",
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.fitness_center,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  workoutTitle,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (templateData != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '$duration • $exerciseCount exercises',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ] else ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tap to create your workout plan',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-      loading: () => Container(
-        height: 120,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-}
-
 /// Quick action card (Check-in, Nutrition)
 class _QuickActionCard extends StatelessWidget {
   final String emoji;
@@ -594,193 +470,12 @@ class _QuickActionCard extends StatelessWidget {
   }
 }
 
-/// Cycle phase badge with info icon
+/// Tracking preference badge, independent of phase/period calculations.
 class _CyclePhaseBadge extends StatelessWidget {
-  final AsyncValue<CyclePhase?> cyclePhaseAsync;
-
-  const _CyclePhaseBadge({required this.cyclePhaseAsync});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return cyclePhaseAsync.when(
-      data: (phase) {
-        if (phase == null) {
-          // Not tracking cycles - show nothing or a simple badge
-          return const SizedBox.shrink();
-        }
-
-        final phaseInfo = _getPhaseInfo(phase);
-
-        return GestureDetector(
-          onTap: () => _showCycleInfoDialog(context, phase, phaseInfo),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: phaseInfo.color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(phaseInfo.emoji, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 6),
-                Text(
-                  phaseInfo.name,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: phaseInfo.color,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.info_outline,
-                  size: 14,
-                  color: phaseInfo.color,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  _PhaseInfo _getPhaseInfo(CyclePhase phase) {
-    switch (phase) {
-      case CyclePhase.menstrual:
-        return _PhaseInfo(
-          name: 'Menstrual',
-          emoji: '🌙',
-          color: const Color(0xFFB85C5C),
-          description: 'Rest & recovery phase. Your body is shedding the uterine lining. '
-              'Focus on gentle movement, stretching, and listening to your body. '
-              'It\'s okay to reduce intensity.',
-          tips: [
-            'Prioritize rest and sleep',
-            'Gentle yoga or walking',
-            'Stay hydrated',
-            'Iron-rich foods help',
-          ],
-        );
-      case CyclePhase.follicular:
-        return _PhaseInfo(
-          name: 'Follicular',
-          emoji: '🌱',
-          color: const Color(0xFF5C9E5C),
-          description: 'Energy rising phase. Estrogen increases, boosting mood and energy. '
-              'Great time for trying new workouts, building strength, and pushing harder.',
-          tips: [
-            'Try new exercises',
-            'Increase workout intensity',
-            'Build strength & muscle',
-            'Energy levels are high',
-          ],
-        );
-      case CyclePhase.ovulation:
-        return _PhaseInfo(
-          name: 'Ovulation',
-          emoji: '☀️',
-          color: const Color(0xFFE6A23C),
-          description: 'Peak energy phase. You\'re at your strongest! '
-              'Testosterone and estrogen peak, making this ideal for high-intensity workouts and PRs.',
-          tips: [
-            'Go for personal records',
-            'High-intensity training',
-            'Peak strength & endurance',
-            'Social workouts are great',
-          ],
-        );
-      case CyclePhase.luteal:
-        return _PhaseInfo(
-          name: 'Luteal',
-          emoji: '🍂',
-          color: const Color(0xFF8B7355),
-          description: 'Wind-down phase. Progesterone rises, which can affect mood and energy. '
-              'Focus on steady-state cardio and maintenance. Be patient with yourself.',
-          tips: [
-            'Moderate intensity workouts',
-            'Focus on form over weight',
-            'Extra rest between sets',
-            'Nourishing foods help',
-          ],
-        );
-    }
-  }
-
-  void _showCycleInfoDialog(BuildContext context, CyclePhase phase, _PhaseInfo info) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Text(info.emoji, style: const TextStyle(fontSize: 24)),
-            const SizedBox(width: 8),
-            Text(
-              '${info.name} Phase',
-              style: TextStyle(color: info.color, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                info.description,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Tips for this phase:',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...info.tips.map((tip) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('• ', style: TextStyle(color: info.color)),
-                    Expanded(child: Text(tip)),
-                  ],
-                ),
-              )),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhaseInfo {
-  final String name;
-  final String emoji;
-  final Color color;
-  final String description;
-  final List<String> tips;
-
-  _PhaseInfo({
-    required this.name,
-    required this.emoji,
-    required this.color,
-    required this.description,
-    required this.tips,
-  });
+ final bool tracking;
+ const _CyclePhaseBadge({required this.tracking});
+ @override Widget build(BuildContext context) => tracking ? const Chip(
+   avatar:Icon(Icons.calendar_today,size:16),label:Text('Cycle tracking')) : const SizedBox.shrink();
 }
 
 /// Premium quick actions row (AI Coach + Progress Photos)

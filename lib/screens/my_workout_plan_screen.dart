@@ -1,3 +1,4 @@
+import '../widgets/personalization_boundary.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -7,14 +8,14 @@ import '../state/providers.dart';
 import '../theme/app_theme.dart';
 import '../models/workout_template_doc.dart';
 
-class MyWorkoutPlanScreen extends ConsumerStatefulWidget {
-  const MyWorkoutPlanScreen({super.key});
+class _MyWorkoutPlanScreenContent extends ConsumerStatefulWidget {
+  const _MyWorkoutPlanScreenContent();
 
   @override
-  ConsumerState<MyWorkoutPlanScreen> createState() => _MyWorkoutPlanScreenState();
+  ConsumerState<_MyWorkoutPlanScreenContent> createState() => _MyWorkoutPlanScreenState();
 }
 
-class _MyWorkoutPlanScreenState extends ConsumerState<MyWorkoutPlanScreen> {
+class _MyWorkoutPlanScreenState extends ConsumerState<_MyWorkoutPlanScreenContent> {
   WorkoutTemplateDoc? _currentDoc;
   Map<String, dynamic>? _templateData;
   bool _hasChanges = false;
@@ -183,7 +184,7 @@ class _MyWorkoutPlanScreenState extends ConsumerState<MyWorkoutPlanScreen> {
     final repMinController = TextEditingController(text: '8');
     final repMaxController = TextEditingController(text: '12');
 
-    showDialog(
+    showPersonalizationDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -297,7 +298,7 @@ class _MyWorkoutPlanScreenState extends ConsumerState<MyWorkoutPlanScreen> {
       text: repMax?.toString() ?? '12',
     );
 
-    showDialog(
+    showPersonalizationDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -666,4 +667,10 @@ class _ExerciseRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class MyWorkoutPlanScreen extends StatelessWidget {
+  const MyWorkoutPlanScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _MyWorkoutPlanScreenContent());
 }

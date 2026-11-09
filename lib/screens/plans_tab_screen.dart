@@ -1,3 +1,5 @@
+import '../widgets/personalization_boundary.dart';
+import 'plan_review_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,8 +10,8 @@ import '../theme/app_theme.dart';
 
 /// Unified Plans tab showing both Nutrition and Workout plans
 /// Redesigned to match Figma designs
-class PlansTabScreen extends ConsumerWidget {
-  const PlansTabScreen({super.key});
+class _PlansTabContent extends ConsumerWidget {
+  const _PlansTabContent();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,6 +43,8 @@ class PlansTabScreen extends ConsumerWidget {
               ),
 
               const SizedBox(height: 24),
+
+              TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PlanReviewScreen())), child: const Text('Review my plan and week')),
 
               // Nutrition Plan Card
               const _NutritionPlanCard(),
@@ -585,4 +589,10 @@ class _EmptyPlanContent extends StatelessWidget {
       ],
     );
   }
+}
+
+class PlansTabScreen extends StatelessWidget {
+  const PlansTabScreen({super.key});
+  @override
+  Widget build(BuildContext context) => const PersonalizationBoundary(child: _PlansTabContent());
 }

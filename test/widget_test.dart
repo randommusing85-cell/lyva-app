@@ -5,11 +5,25 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyva_app/widgets/empty_state.dart';
 
 void main() {
-  testWidgets('App launches', (WidgetTester tester) async {
-    // Placeholder test - the actual app requires Firebase initialization
-    expect(1 + 1, 2);
+  testWidgets('workout empty state invokes the create action', (
+    WidgetTester tester,
+  ) async {
+    var created = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EmptyState.noWorkoutPlan(onCreate: () => created = true),
+        ),
+      ),
+    );
+    expect(find.text('No Workout Plan Yet'), findsOneWidget);
+    await tester.tap(find.text('Create Workout Plan'));
+    expect(created, isTrue);
+    expect(tester.takeException(), isNull);
   });
 }

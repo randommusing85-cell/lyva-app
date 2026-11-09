@@ -22,48 +22,73 @@ const CyclePredictionSchema = CollectionSchema(
       name: r'actualPeriodDate',
       type: IsarType.dateTime,
     ),
-    r'confidence': PropertySchema(
+    r'completedCycleCount': PropertySchema(
       id: 1,
+      name: r'completedCycleCount',
+      type: IsarType.long,
+    ),
+    r'confidence': PropertySchema(
+      id: 2,
       name: r'confidence',
       type: IsarType.double,
     ),
     r'factorsJson': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'factorsJson',
       type: IsarType.string,
     ),
     r'fertileWindowEnd': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'fertileWindowEnd',
       type: IsarType.dateTime,
     ),
     r'fertileWindowStart': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'fertileWindowStart',
       type: IsarType.dateTime,
     ),
+    r'modelVersion': PropertySchema(
+      id: 6,
+      name: r'modelVersion',
+      type: IsarType.string,
+    ),
     r'predictedCycleLength': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'predictedCycleLength',
       type: IsarType.long,
     ),
     r'predictedOvulation': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'predictedOvulation',
       type: IsarType.dateTime,
     ),
     r'predictedPeriodDate': PropertySchema(
-      id: 7,
+      id: 9,
       name: r'predictedPeriodDate',
       type: IsarType.dateTime,
     ),
+    r'predictedPeriodRangeEnd': PropertySchema(
+      id: 10,
+      name: r'predictedPeriodRangeEnd',
+      type: IsarType.dateTime,
+    ),
+    r'predictedPeriodRangeStart': PropertySchema(
+      id: 11,
+      name: r'predictedPeriodRangeStart',
+      type: IsarType.dateTime,
+    ),
     r'ts': PropertySchema(
-      id: 8,
+      id: 12,
       name: r'ts',
       type: IsarType.dateTime,
     ),
+    r'variabilityDays': PropertySchema(
+      id: 13,
+      name: r'variabilityDays',
+      type: IsarType.double,
+    ),
     r'verified': PropertySchema(
-      id: 9,
+      id: 14,
       name: r'verified',
       type: IsarType.bool,
     )
@@ -108,6 +133,12 @@ int _cyclePredictionEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  {
+    final value = object.modelVersion;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -118,15 +149,20 @@ void _cyclePredictionSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeDateTime(offsets[0], object.actualPeriodDate);
-  writer.writeDouble(offsets[1], object.confidence);
-  writer.writeString(offsets[2], object.factorsJson);
-  writer.writeDateTime(offsets[3], object.fertileWindowEnd);
-  writer.writeDateTime(offsets[4], object.fertileWindowStart);
-  writer.writeLong(offsets[5], object.predictedCycleLength);
-  writer.writeDateTime(offsets[6], object.predictedOvulation);
-  writer.writeDateTime(offsets[7], object.predictedPeriodDate);
-  writer.writeDateTime(offsets[8], object.ts);
-  writer.writeBool(offsets[9], object.verified);
+  writer.writeLong(offsets[1], object.completedCycleCount);
+  writer.writeDouble(offsets[2], object.confidence);
+  writer.writeString(offsets[3], object.factorsJson);
+  writer.writeDateTime(offsets[4], object.fertileWindowEnd);
+  writer.writeDateTime(offsets[5], object.fertileWindowStart);
+  writer.writeString(offsets[6], object.modelVersion);
+  writer.writeLong(offsets[7], object.predictedCycleLength);
+  writer.writeDateTime(offsets[8], object.predictedOvulation);
+  writer.writeDateTime(offsets[9], object.predictedPeriodDate);
+  writer.writeDateTime(offsets[10], object.predictedPeriodRangeEnd);
+  writer.writeDateTime(offsets[11], object.predictedPeriodRangeStart);
+  writer.writeDateTime(offsets[12], object.ts);
+  writer.writeDouble(offsets[13], object.variabilityDays);
+  writer.writeBool(offsets[14], object.verified);
 }
 
 CyclePrediction _cyclePredictionDeserialize(
@@ -137,16 +173,21 @@ CyclePrediction _cyclePredictionDeserialize(
 ) {
   final object = CyclePrediction();
   object.actualPeriodDate = reader.readDateTimeOrNull(offsets[0]);
-  object.confidence = reader.readDouble(offsets[1]);
-  object.factorsJson = reader.readStringOrNull(offsets[2]);
-  object.fertileWindowEnd = reader.readDateTime(offsets[3]);
-  object.fertileWindowStart = reader.readDateTime(offsets[4]);
+  object.completedCycleCount = reader.readLong(offsets[1]);
+  object.confidence = reader.readDouble(offsets[2]);
+  object.factorsJson = reader.readStringOrNull(offsets[3]);
+  object.fertileWindowEnd = reader.readDateTime(offsets[4]);
+  object.fertileWindowStart = reader.readDateTime(offsets[5]);
   object.id = id;
-  object.predictedCycleLength = reader.readLong(offsets[5]);
-  object.predictedOvulation = reader.readDateTime(offsets[6]);
-  object.predictedPeriodDate = reader.readDateTime(offsets[7]);
-  object.ts = reader.readDateTime(offsets[8]);
-  object.verified = reader.readBool(offsets[9]);
+  object.modelVersion = reader.readStringOrNull(offsets[6]);
+  object.predictedCycleLength = reader.readLong(offsets[7]);
+  object.predictedOvulation = reader.readDateTime(offsets[8]);
+  object.predictedPeriodDate = reader.readDateTime(offsets[9]);
+  object.predictedPeriodRangeEnd = reader.readDateTimeOrNull(offsets[10]);
+  object.predictedPeriodRangeStart = reader.readDateTimeOrNull(offsets[11]);
+  object.ts = reader.readDateTime(offsets[12]);
+  object.variabilityDays = reader.readDoubleOrNull(offsets[13]);
+  object.verified = reader.readBool(offsets[14]);
   return object;
 }
 
@@ -160,22 +201,32 @@ P _cyclePredictionDeserializeProp<P>(
     case 0:
       return (reader.readDateTimeOrNull(offset)) as P;
     case 1:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 3:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 4:
       return (reader.readDateTime(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 6:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 7:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 8:
       return (reader.readDateTime(offset)) as P;
     case 9:
+      return (reader.readDateTime(offset)) as P;
+    case 10:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 11:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 12:
+      return (reader.readDateTime(offset)) as P;
+    case 13:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 14:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -442,6 +493,62 @@ extension CyclePredictionQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'actualPeriodDate',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      completedCycleCountEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'completedCycleCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      completedCycleCountGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'completedCycleCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      completedCycleCountLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'completedCycleCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      completedCycleCountBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'completedCycleCount',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -839,6 +946,160 @@ extension CyclePredictionQueryFilter
   }
 
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'modelVersion',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'modelVersion',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'modelVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'modelVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'modelVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'modelVersion',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'modelVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'modelVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'modelVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'modelVersion',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'modelVersion',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      modelVersionIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'modelVersion',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
       predictedCycleLengthEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -1007,6 +1268,154 @@ extension CyclePredictionQueryFilter
   }
 
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeEndIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'predictedPeriodRangeEnd',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeEndIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'predictedPeriodRangeEnd',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeEndEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'predictedPeriodRangeEnd',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeEndGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'predictedPeriodRangeEnd',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeEndLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'predictedPeriodRangeEnd',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeEndBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'predictedPeriodRangeEnd',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeStartIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'predictedPeriodRangeStart',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeStartIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'predictedPeriodRangeStart',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeStartEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'predictedPeriodRangeStart',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeStartGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'predictedPeriodRangeStart',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeStartLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'predictedPeriodRangeStart',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      predictedPeriodRangeStartBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'predictedPeriodRangeStart',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
       tsEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -1063,6 +1472,90 @@ extension CyclePredictionQueryFilter
   }
 
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      variabilityDaysIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'variabilityDays',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      variabilityDaysIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'variabilityDays',
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      variabilityDaysEqualTo(
+    double? value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'variabilityDays',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      variabilityDaysGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'variabilityDays',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      variabilityDaysLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'variabilityDays',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
+      variabilityDaysBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'variabilityDays',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterFilterCondition>
       verifiedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -1092,6 +1585,20 @@ extension CyclePredictionQuerySortBy
       sortByActualPeriodDateDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'actualPeriodDate', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByCompletedCycleCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'completedCycleCount', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByCompletedCycleCountDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'completedCycleCount', Sort.desc);
     });
   }
 
@@ -1152,6 +1659,20 @@ extension CyclePredictionQuerySortBy
   }
 
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByModelVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'modelVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByModelVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'modelVersion', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
       sortByPredictedCycleLength() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'predictedCycleLength', Sort.asc);
@@ -1193,6 +1714,34 @@ extension CyclePredictionQuerySortBy
     });
   }
 
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByPredictedPeriodRangeEnd() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeEnd', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByPredictedPeriodRangeEndDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeEnd', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByPredictedPeriodRangeStart() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeStart', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByPredictedPeriodRangeStartDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeStart', Sort.desc);
+    });
+  }
+
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy> sortByTs() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ts', Sort.asc);
@@ -1202,6 +1751,20 @@ extension CyclePredictionQuerySortBy
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy> sortByTsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ts', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByVariabilityDays() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'variabilityDays', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      sortByVariabilityDaysDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'variabilityDays', Sort.desc);
     });
   }
 
@@ -1233,6 +1796,20 @@ extension CyclePredictionQuerySortThenBy
       thenByActualPeriodDateDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'actualPeriodDate', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByCompletedCycleCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'completedCycleCount', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByCompletedCycleCountDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'completedCycleCount', Sort.desc);
     });
   }
 
@@ -1305,6 +1882,20 @@ extension CyclePredictionQuerySortThenBy
   }
 
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByModelVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'modelVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByModelVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'modelVersion', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
       thenByPredictedCycleLength() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'predictedCycleLength', Sort.asc);
@@ -1346,6 +1937,34 @@ extension CyclePredictionQuerySortThenBy
     });
   }
 
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByPredictedPeriodRangeEnd() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeEnd', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByPredictedPeriodRangeEndDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeEnd', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByPredictedPeriodRangeStart() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeStart', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByPredictedPeriodRangeStartDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'predictedPeriodRangeStart', Sort.desc);
+    });
+  }
+
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy> thenByTs() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ts', Sort.asc);
@@ -1355,6 +1974,20 @@ extension CyclePredictionQuerySortThenBy
   QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy> thenByTsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ts', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByVariabilityDays() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'variabilityDays', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QAfterSortBy>
+      thenByVariabilityDaysDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'variabilityDays', Sort.desc);
     });
   }
 
@@ -1379,6 +2012,13 @@ extension CyclePredictionQueryWhereDistinct
       distinctByActualPeriodDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'actualPeriodDate');
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QDistinct>
+      distinctByCompletedCycleCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'completedCycleCount');
     });
   }
 
@@ -1411,6 +2051,13 @@ extension CyclePredictionQueryWhereDistinct
   }
 
   QueryBuilder<CyclePrediction, CyclePrediction, QDistinct>
+      distinctByModelVersion({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'modelVersion', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QDistinct>
       distinctByPredictedCycleLength() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'predictedCycleLength');
@@ -1431,9 +2078,30 @@ extension CyclePredictionQueryWhereDistinct
     });
   }
 
+  QueryBuilder<CyclePrediction, CyclePrediction, QDistinct>
+      distinctByPredictedPeriodRangeEnd() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'predictedPeriodRangeEnd');
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QDistinct>
+      distinctByPredictedPeriodRangeStart() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'predictedPeriodRangeStart');
+    });
+  }
+
   QueryBuilder<CyclePrediction, CyclePrediction, QDistinct> distinctByTs() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'ts');
+    });
+  }
+
+  QueryBuilder<CyclePrediction, CyclePrediction, QDistinct>
+      distinctByVariabilityDays() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'variabilityDays');
     });
   }
 
@@ -1457,6 +2125,13 @@ extension CyclePredictionQueryProperty
       actualPeriodDateProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'actualPeriodDate');
+    });
+  }
+
+  QueryBuilder<CyclePrediction, int, QQueryOperations>
+      completedCycleCountProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'completedCycleCount');
     });
   }
 
@@ -1487,6 +2162,13 @@ extension CyclePredictionQueryProperty
     });
   }
 
+  QueryBuilder<CyclePrediction, String?, QQueryOperations>
+      modelVersionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'modelVersion');
+    });
+  }
+
   QueryBuilder<CyclePrediction, int, QQueryOperations>
       predictedCycleLengthProperty() {
     return QueryBuilder.apply(this, (query) {
@@ -1508,9 +2190,30 @@ extension CyclePredictionQueryProperty
     });
   }
 
+  QueryBuilder<CyclePrediction, DateTime?, QQueryOperations>
+      predictedPeriodRangeEndProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'predictedPeriodRangeEnd');
+    });
+  }
+
+  QueryBuilder<CyclePrediction, DateTime?, QQueryOperations>
+      predictedPeriodRangeStartProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'predictedPeriodRangeStart');
+    });
+  }
+
   QueryBuilder<CyclePrediction, DateTime, QQueryOperations> tsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'ts');
+    });
+  }
+
+  QueryBuilder<CyclePrediction, double?, QQueryOperations>
+      variabilityDaysProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'variabilityDays');
     });
   }
 

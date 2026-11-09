@@ -1,6 +1,7 @@
+import '../widgets/personalization_boundary.dart';
 import 'dart:convert';
 
-import 'package:cloud_functions/cloud_functions.dart';
+import '../services/safety_callable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,15 +15,15 @@ import '../widgets/generating_overlay.dart';
 /// 1. Creating nutrition plan
 /// 2. Creating workout plan
 /// Then navigates to the home screen
-class GuidedSetupFlowScreen extends ConsumerStatefulWidget {
-  const GuidedSetupFlowScreen({super.key});
+class _GuidedSetupFlowScreenContent extends ConsumerStatefulWidget {
+  const _GuidedSetupFlowScreenContent();
 
   @override
-  ConsumerState<GuidedSetupFlowScreen> createState() =>
+  ConsumerState<_GuidedSetupFlowScreenContent> createState() =>
       _GuidedSetupFlowScreenState();
 }
 
-class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
+class _GuidedSetupFlowScreenState extends ConsumerState<_GuidedSetupFlowScreenContent> {
   int _currentStep = 0; // 0 = nutrition, 1 = workout, 2 = complete
 
   // Nutrition plan state
@@ -129,7 +130,7 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
         ],
         task: () async {
           final callable =
-              FirebaseFunctions.instance.httpsCallable('generatePlan');
+              SafetyCallable('generatePlan');
           final res = await callable.call({
             "age": profile.age,
             "sex": profile.sex,
@@ -153,6 +154,7 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
           trainingDays: profile.trainingDaysPerWeek,
         );
 
+        if (!mounted) return;
         setState(() {
           _nutritionPlanJson = planJson;
           _nutritionGenerated = true;
@@ -247,12 +249,12 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
         ],
         task: () async {
           return await repo.generateWorkoutTemplate(
+            profile: profile,
             sex: profile.sex,
             level: profile.level,
             equipment: profile.equipment,
             daysPerWeek: profile.trainingDaysPerWeek,
             sessionDurationMin: 60,
-            constraints: 'none',
           );
         },
       );
@@ -265,6 +267,7 @@ class _GuidedSetupFlowScreenState extends ConsumerState<GuidedSetupFlowScreen> {
           daysPerWeek: profile.trainingDaysPerWeek,
         );
 
+        if (!mounted) return;
         setState(() {
           _workoutResponse = res;
           _workoutGenerated = true;
@@ -1014,4 +1017,10 @@ class _MacroChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class GuidedSetupFlowScreen extends StatelessWidget {
+  const GuidedSetupFlowScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _GuidedSetupFlowScreenContent());
 }

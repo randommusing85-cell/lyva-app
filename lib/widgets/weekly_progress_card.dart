@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
 import '../repos/lyva_repo.dart';
+import '../models/workout_plan_snapshot.dart';
 
 class WeeklyProgressCard extends ConsumerWidget {
   const WeeklyProgressCard({super.key});
@@ -140,18 +141,10 @@ class WeeklyProgressCard extends ConsumerWidget {
     final weekStartMidnight =
         DateTime(weekStart.year, weekStart.month, weekStart.day);
 
-    // For v0.1, we'll do a simple count
-    // In v1.0, you'd query sessions with date filters
-    final latestSession = await repo.getLatestWorkoutSession();
-
-    // Simple heuristic: count completed sessions this week
-    // This is a placeholder - you'd want to query all sessions in date range
-    int completedThisWeek = 0;
-    if (latestSession != null &&
-        latestSession.completed &&
-        latestSession.date.isAfter(weekStartMidnight)) {
-      completedThisWeek = latestSession.dayIndex;
-    }
+    final planId = WorkoutPlanSnapshot.capture(template).planId;
+    final sessions = await repo.getSessionsInDateRange(weekStartMidnight, now);
+    final completedThisWeek = sessions.where((session) =>
+      session.planId == planId && session.completed && !session.skipped).length;
 
     return {
       'completed': completedThisWeek.clamp(0, totalDays),

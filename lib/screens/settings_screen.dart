@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/providers.dart';
 import '../services/analytics_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/workout_day_scheduler.dart';
 import '../theme/app_theme.dart';
 import '../services/premium_service.dart';
@@ -50,6 +50,7 @@ class SettingsScreen extends ConsumerWidget {
                         profile.updatedAt = DateTime.now();
                         await repo.saveProfile(profile);
                         ref.invalidate(userProfileProvider);
+                        await NotificationService().setupNotifications(profile);
 
                         if (context.mounted) {
                           Navigator.pop(ctx);
@@ -113,6 +114,16 @@ class SettingsScreen extends ConsumerWidget {
 
                   const SizedBox(height: 24),
 
+                  _SettingsTile(
+                    icon: Icons.account_circle_outlined,
+                    title: 'Account',
+                    subtitle: ref.watch(accountSessionProvider).recoverable
+                        ? 'Signed in' : 'Apple or Google sign-in',
+                    onTap: () => Navigator.pushNamed(context, '/account'),
+                  ),
+                  _SettingsTile(icon: Icons.psychology_outlined, title: 'Local coach memory',
+                    subtitle: 'Inspect, correct or delete optional local notes',
+                    onTap: () => Navigator.pushNamed(context, '/local-memory')),
                   // Settings List
                   _SettingsTile(
                     icon: Icons.calendar_month_outlined,
@@ -218,6 +229,23 @@ class SettingsScreen extends ConsumerWidget {
 
                   const SizedBox(height: 24),
 
+                  ValueListenableBuilder<bool>(
+                    valueListenable: AnalyticsService().enabled,
+                    builder: (context, enabled, _) => SwitchListTile(
+                      title: const Text('Optional usage analytics'),
+                      subtitle: const Text('Off by default. Share basic app and subscription events with Firebase; no health details or custom event parameters.'),
+                      value: enabled,
+                      onChanged: (value) async {
+                        try { await AnalyticsService().setCollectionEnabled(value); }
+                        catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Could not update analytics preference. Please try again.')));
+                          }
+                        }
+                      },
+                    ),
+                  ),
                   // Legal Section
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -304,95 +332,6 @@ class SettingsScreen extends ConsumerWidget {
       default:
         return level;
     }
-  }
-
-  static void showRedeemCodeDialog(BuildContext context, WidgetRef ref) {
-    final codeController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Enter Code'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enter a promo or gift code to unlock premium features.',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: codeController,
-              textCapitalization: TextCapitalization.characters,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
-                UpperCaseTextFormatter(),
-              ],
-              decoration: InputDecoration(
-                hintText: 'e.g. PRIMEFORM2025',
-                prefixIcon: const Icon(Icons.card_giftcard_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final code = codeController.text.trim();
-              if (code.isEmpty) return;
-
-              final service = PremiumService();
-              final tier = service.redeemPromoCode(code);
-
-              if (tier != null) {
-                final tierName =
-                    tier == PremiumTier.premium ? 'premium' : 'essentials';
-                final repo = ref.read(userProfileRepoProvider);
-                await repo.updatePremiumTier(tierName);
-                ref.invalidate(premiumAccessProvider);
-                ref.invalidate(userProfileProvider);
-
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${tierName[0].toUpperCase()}${tierName.substring(1)} unlocked!',
-                      ),
-                      backgroundColor: AppColors.primary,
-                    ),
-                  );
-                }
-              } else {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Invalid code. Please check and try again.'),
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Redeem'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showFullDisclaimerDialog(BuildContext context) {
@@ -543,7 +482,7 @@ class SettingsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Features:', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('• Cycle-aware training'),
+                  Text('• Cycle and symptom records'),
                   Text('• Post-partum safe progression'),
                   Text('• AI coaching'),
                   Text('• Personalized nutrition plans'),
@@ -673,94 +612,14 @@ class SettingsScreen extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Privacy Policy'),
         content: const SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Last Updated: January 2025',
-                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-              ),
-              SizedBox(height: 16),
-              Text(
-                '1. Information We Collect',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('We collect information you provide directly:'),
-              Text('• Profile data (age, sex, height, weight)'),
-              Text('• Health information (cycle data, injuries)'),
-              Text('• Fitness data (workouts, check-ins, meals)'),
-              Text('• App usage analytics'),
-              SizedBox(height: 16),
-              Text(
-                '2. How We Use Your Information',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('Your data is used to:'),
-              Text('• Generate personalized workout and nutrition plans'),
-              Text('• Provide AI coaching recommendations'),
-              Text('• Track your progress'),
-              Text('• Improve app features'),
-              SizedBox(height: 16),
-              Text(
-                '3. Data Storage',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Your data is stored locally on your device and in secure cloud services (Firebase). We use industry-standard security measures to protect your information.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '4. Data Sharing',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'We do NOT sell your personal data. We may share anonymized, aggregated data for analytics purposes only.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '5. Your Rights',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('You have the right to:'),
-              Text('• Access your data'),
-              Text('• Correct inaccurate data'),
-              Text('• Delete your data'),
-              Text('• Export your data'),
-              SizedBox(height: 16),
-              Text(
-                '6. Analytics',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'We use Firebase Analytics to understand app usage patterns. This helps us improve the app experience. Analytics data is anonymized and aggregated.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '7. Children\'s Privacy',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Lyva is not intended for users under 18. We do not knowingly collect data from children.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '8. Contact Us',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'For privacy concerns, please contact us through the app\'s feedback feature.',
-              ),
-            ],
-          ),
+          child: Text(
+            'Your profile, health logs, plans, coaching messages and photo records are saved on this device. '
+            'AI features send the relevant profile and health context, prompts, conversation history or selected photo to Firebase Cloud Functions for processing. '
+            'Subscription features communicate with RevenueCat and your app store.\n\n'
+            'Optional usage analytics is off by default. If enabled in Settings, Firebase receives basic app, onboarding, paywall and subscription events, along with SDK-generated app/device identifiers and activity. '
+            'Lyva does not send body measurements, symptoms, cycle/postpartum details, health-feature events, free text or custom event parameters to Analytics. You can turn collection off at any time. This does not delete previously sent data.\n\n'
+            'Deleting a photo or clearing chat removes the local records; it is not a request to erase data already processed by a server. Clear Chat keeps existing AI insights. '
+            'Server retention, access and deletion arrangements still need confirmation. Contact kineticiq.ai@gmail.com with questions.'),
         ),
         actions: [
           TextButton(
@@ -1111,13 +970,6 @@ class _PremiumSection extends ConsumerWidget {
           },
         ),
 
-        _SettingsTile(
-          icon: Icons.card_giftcard_outlined,
-          title: 'Enter Code',
-          subtitle: 'Redeem a promo or gift code',
-          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
-        ),
-
         const SizedBox(height: 8),
 
         // Show navigable tiles for features user CAN access
@@ -1194,12 +1046,6 @@ class _PremiumSection extends ConsumerWidget {
         // All feature tiles during trial (trial = all access)
         ..._buildAllFeatureTiles(context),
 
-        _SettingsTile(
-          icon: Icons.card_giftcard_outlined,
-          title: 'Enter Code',
-          subtitle: 'Redeem a promo or gift code',
-          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
-        ),
       ],
     );
   }
@@ -1291,12 +1137,6 @@ class _PremiumSection extends ConsumerWidget {
         ),
 
         const SizedBox(height: 12),
-        _SettingsTile(
-          icon: Icons.card_giftcard_outlined,
-          title: 'Enter Code',
-          subtitle: 'Redeem a promo or gift code',
-          onTap: () => SettingsScreen.showRedeemCodeDialog(context, ref),
-        ),
       ],
     );
   }
@@ -1400,6 +1240,7 @@ class _HealthPermissionTile extends ConsumerStatefulWidget {
 
 class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
   bool? _authorized;
+  bool _checkingAuthorization = true;
 
   @override
   void initState() {
@@ -1410,14 +1251,20 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
   Future<void> _checkAuth() async {
     final service = ref.read(stepTrackingServiceProvider);
     final auth = await service.isAuthorized();
-    if (mounted) setState(() => _authorized = auth);
+    if (mounted) {
+      setState(() {
+        _authorized = auth;
+        _checkingAuthorization = false;
+      });
+    }
   }
 
   Future<void> _requestPermission() async {
     final service = ref.read(stepTrackingServiceProvider);
     final granted = await service.requestPermissions();
     if (mounted) {
-      setState(() => _authorized = granted);
+      await _checkAuth();
+      if (!mounted) return;
       if (granted) {
         ref.invalidate(todayStepsProvider);
         ref.invalidate(weeklyStepsProvider);
@@ -1425,7 +1272,7 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(granted
-              ? 'Health data access granted'
+              ? 'Health request completed. Manage access in device settings.'
               : 'Permission denied — you can enable it in device settings'),
           backgroundColor: granted ? AppColors.primary : AppColors.error,
         ),
@@ -1436,9 +1283,11 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtitle = _authorized == null
+    final subtitle = _checkingAuthorization
         ? 'Checking...'
-        : _authorized!
+        : _authorized == null
+            ? 'Manage access in Health settings'
+            : _authorized!
             ? 'Connected'
             : 'Not connected';
 
@@ -1478,20 +1327,6 @@ class _HealthPermissionTileState extends ConsumerState<_HealthPermissionTile> {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-    );
-  }
-}
-
-/// Text input formatter that converts input to uppercase
-class UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return TextEditingValue(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
     );
   }
 }

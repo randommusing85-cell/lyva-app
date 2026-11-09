@@ -11,6 +11,7 @@ class AppColors {
 
   // Accent - sage green
   static const Color primary = Color(0xFF8BA888);
+  static const Color action = Color(0xFF426440);
   static const Color primaryDark = Color(0xFF6B8B69);
   static const Color primaryLight = Color(0xFFB5D4B3);
 
@@ -49,7 +50,7 @@ class AppTheme {
 
       // Color scheme
       colorScheme: ColorScheme.light(
-        primary: AppColors.primary,
+        primary: AppColors.action,
         onPrimary: Colors.white,
         primaryContainer: AppColors.primaryLight.withOpacity(0.3),
         onPrimaryContainer: AppColors.primaryDark,
@@ -95,7 +96,7 @@ class AppTheme {
       // Elevated button theme (sage green)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.action,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -128,7 +129,7 @@ class AppTheme {
       // Text button theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: AppColors.action,
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,

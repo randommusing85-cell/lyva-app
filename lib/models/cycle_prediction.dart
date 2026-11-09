@@ -12,6 +12,10 @@ class CyclePrediction {
   /// Predicted start date of next period
   late DateTime predictedPeriodDate;
 
+  /// Personalized prediction window. Nullable for older saved predictions.
+  DateTime? predictedPeriodRangeStart;
+  DateTime? predictedPeriodRangeEnd;
+
   /// Predicted ovulation date
   late DateTime predictedOvulation;
 
@@ -26,6 +30,15 @@ class CyclePrediction {
 
   /// Confidence score 0.0-1.0
   late double confidence;
+
+  /// Number of completed cycles used by the personal model.
+  int completedCycleCount = 0;
+
+  /// Estimated day-to-day variability in cycle length.
+  double? variabilityDays;
+
+  /// Identifier for the prediction implementation.
+  String? modelVersion;
 
   /// JSON of factors that influenced the prediction
   String? factorsJson;

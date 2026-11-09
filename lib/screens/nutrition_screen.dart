@@ -13,6 +13,8 @@ import '../theme/app_theme.dart';
 import '../widgets/circular_progress_ring.dart';
 import '../widgets/premium_gate.dart';
 import 'food_scanner_screen.dart';
+import 'meal_picker_screen.dart';
+import '../models/meal_portion.dart';
 
 class NutritionScreen extends ConsumerStatefulWidget {
   const NutritionScreen({super.key});
@@ -143,6 +145,8 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   }
 
   Future<void> _showAddMealSheet(BuildContext context) async {
+    final result = await Navigator.push<Object?>(context, MaterialPageRoute(builder: (_) => const MealPickerScreen()));
+    if (!context.mounted || result != 'manual') return;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -173,7 +177,7 @@ class _LoadingCard extends StatelessWidget {
 }
 
 // Daily Summary Card showing progress toward targets
-class _DailySummaryCard extends StatelessWidget {
+class _DailySummaryCard extends ConsumerWidget {
   final dynamic plan;
   final List<MealLog> meals;
 
@@ -183,13 +187,17 @@ class _DailySummaryCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Calculate today's totals
     final totalProtein = meals.fold<int>(0, (sum, m) => sum + m.proteinG);
     final totalCarbs = meals.fold<int>(0, (sum, m) => sum + m.carbsG);
     final totalFat = meals.fold<int>(0, (sum, m) => sum + m.fatG);
     final totalCals = (totalProtein * 4) + (totalCarbs * 4) + (totalFat * 9);
 
+    if (ref.watch(personalizationDecisionProvider).asData?.value.allowed != true) {
+      return Card(child: Padding(padding: const EdgeInsets.all(16), child: Text(
+        'Recorded today: $totalCals kcal, $totalProtein g protein, $totalCarbs g carbs, $totalFat g fat. Personalized targets are unavailable; meal logging remains available.')));
+    }
     if (plan == null) {
       return Container(
         padding: const EdgeInsets.all(24),
@@ -599,6 +607,8 @@ class _MealCard extends ConsumerWidget {
                           color: AppColors.textPrimary,
                         ),
                       ),
+                      const Text('Estimated nutrition'),
+                      if (meal.portionJson != null) Text(MealPortion.describeMeal(meal)),
                       const SizedBox(height: 6),
                       Row(
                         children: [
@@ -1366,6 +1376,9 @@ class _EditMealSheetState extends ConsumerState<_EditMealSheet> {
             ? null
             : _descCtrl.text.trim();
 
+      if (updatedMeal.proteinG == widget.meal.proteinG && updatedMeal.carbsG == widget.meal.carbsG && updatedMeal.fatG == widget.meal.fatG) {
+        updatedMeal.portionJson = widget.meal.portionJson;
+      }
       final repo = ref.read(lyvaRepoProvider);
       await repo.updateMealLog(updatedMeal);
 

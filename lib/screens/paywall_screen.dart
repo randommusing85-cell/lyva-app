@@ -68,6 +68,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           _buildHeader(),
           const SizedBox(height: 24),
 
+          if (!ref.watch(accountSessionProvider).recoverable) ...[
+            const Text(
+              'Sign in before purchasing, restoring or using Premium.',
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (!ref.watch(accountSessionProvider).recoverable)
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/account'),
+              child: const Text('Sign in with Apple or Google'),
+            ),
           // Billing toggle
           _buildBillingToggle(),
           const SizedBox(height: 20),
@@ -108,7 +119,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                 ),
               ),
-              const Text(' \u2022 ', style: TextStyle(color: AppColors.textMuted)),
+              const Text(
+                ' \u2022 ',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
               TextButton(
                 onPressed: () => _openUrl('https://kineticiq.ai/privacy'),
                 child: const Text(
@@ -151,10 +165,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         const SizedBox(height: 8),
         const Text(
           'Choose the plan that fits your goals',
-          style: TextStyle(
-            fontSize: 15,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
         ),
       ],
     );
@@ -191,7 +202,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: !_isYearly ? Colors.white : AppColors.textSecondary,
+                      color: !_isYearly
+                          ? Colors.white
+                          : AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -216,12 +229,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: _isYearly ? Colors.white : AppColors.textSecondary,
+                          color: _isYearly
+                              ? Colors.white
+                              : AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _isYearly
                               ? Colors.white.withOpacity(0.25)
@@ -251,7 +269,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Widget _buildEssentialsCard(Offering? offering) {
     final packageId = _isYearly ? '\$rc_annual' : '\$rc_monthly';
     final package = _findPackage(offering, 'essentials', _isYearly);
-    final price = package?.storeProduct.priceString ??
+    final price =
+        package?.storeProduct.priceString ??
         (_isYearly ? '\$39.99/yr' : '\$4.99/mo');
     final isHighlighted = widget.highlightTier == PremiumTier.essentials;
 
@@ -276,7 +295,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Widget _buildPremiumCard(Offering? offering) {
     final package = _findPackage(offering, 'premium', _isYearly);
-    final price = package?.storeProduct.priceString ??
+    final price =
+        package?.storeProduct.priceString ??
         (_isYearly ? '\$79.99/yr' : '\$9.99/mo');
     final isHighlighted = widget.highlightTier != PremiumTier.essentials;
 
@@ -290,7 +310,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         'AI Coaching',
         'AI Memory & Insights',
         'Progress Photos & Analysis',
-        'Cycle Predictions',
+        'Cycle Tracker',
       ],
       highlighted: isHighlighted,
       accentColor: AppColors.seasonAccent,
@@ -301,51 +321,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     );
   }
 
-  /// Find the right package from the offering.
-  /// RevenueCat packages are identified by their identifiers.
+  // Never infer a paid tier from price or package ordering.
   Package? _findPackage(Offering? offering, String tier, bool yearly) {
     if (offering == null) return null;
-
-    // Try to find by custom package identifier first
-    final targetId = '${tier}_${yearly ? 'yearly' : 'monthly'}';
-    for (final pkg in offering.availablePackages) {
-      if (pkg.identifier.contains(targetId)) return pkg;
-    }
-
-    // Fallback: try standard RC package types
-    if (tier == 'essentials') {
-      // Essentials packages are typically the lower-priced ones
-      final sorted = [...offering.availablePackages]
-        ..sort((a, b) => a.storeProduct.price.compareTo(b.storeProduct.price));
-      if (yearly) {
-        return sorted.where((p) =>
-            p.packageType == PackageType.annual ||
-            p.identifier.contains('annual') ||
-            p.identifier.contains('yearly')).firstOrNull;
-      } else {
-        return sorted.where((p) =>
-            p.packageType == PackageType.monthly ||
-            p.identifier.contains('monthly')).firstOrNull;
-      }
-    }
-
-    // Premium: try the higher-priced packages
-    if (tier == 'premium') {
-      final sorted = [...offering.availablePackages]
-        ..sort((a, b) => b.storeProduct.price.compareTo(a.storeProduct.price));
-      if (yearly) {
-        return sorted.where((p) =>
-            p.packageType == PackageType.annual ||
-            p.identifier.contains('annual') ||
-            p.identifier.contains('yearly')).firstOrNull;
-      } else {
-        return sorted.where((p) =>
-            p.packageType == PackageType.monthly ||
-            p.identifier.contains('monthly')).firstOrNull;
-      }
-    }
-
-    return null;
+    final selectedTier = tier == 'essentials' ? PremiumTier.essentials : PremiumTier.premium;
+    final target = PremiumService.productIdFor(selectedTier, yearly: yearly);
+    return offering.availablePackages.where((p) => p.storeProduct.identifier == target).firstOrNull;
   }
 
   Widget _buildFeatureComparison() {
@@ -379,16 +360,37 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             children: [
               const Expanded(
                 flex: 3,
-                child: Text('Feature', style: TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600)),
-              ),
-              Expanded(
-                child: Center(
-                  child: Text('Ess.', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'Feature',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Expanded(
                 child: Center(
-                  child: Text('Pro', style: TextStyle(fontSize: 12, color: AppColors.seasonAccent, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Ess.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'Pro',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.seasonAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -401,7 +403,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           _comparisonRow('AI Coaching', false, true),
           _comparisonRow('AI Memory', false, true),
           _comparisonRow('Progress Photos', false, true),
-          _comparisonRow('Cycle Predictions', false, true),
+          _comparisonRow('Cycle Tracker', false, true),
         ],
       ),
     );
@@ -416,7 +418,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             flex: 3,
             child: Text(
               feature,
-              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
           Expanded(
@@ -424,7 +429,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               child: Icon(
                 essentials ? Icons.check_circle : Icons.cancel_outlined,
                 size: 18,
-                color: essentials ? AppColors.primary : AppColors.textMuted.withOpacity(0.4),
+                color: essentials
+                    ? AppColors.primary
+                    : AppColors.textMuted.withOpacity(0.4),
               ),
             ),
           ),
@@ -433,7 +440,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               child: Icon(
                 premium ? Icons.check_circle : Icons.cancel_outlined,
                 size: 18,
-                color: premium ? AppColors.seasonAccent : AppColors.textMuted.withOpacity(0.4),
+                color: premium
+                    ? AppColors.seasonAccent
+                    : AppColors.textMuted.withOpacity(0.4),
               ),
             ),
           ),
@@ -443,6 +452,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Future<void> _handlePurchase(Package package, String tier) async {
+    if (!ref.read(accountSessionProvider).recoverable) {
+      await Navigator.pushNamed(context, '/account');
+      return; // Do not auto-purchase after returning from sign-in.
+    }
     setState(() {
       _purchasing = true;
       _purchasingPackageId = tier;
@@ -450,18 +463,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
     try {
       final service = ref.read(premiumServiceProvider);
-      final customerInfo = await service.purchase(package);
-      final purchasedTier = service.getTierFromCustomerInfo(customerInfo);
-
-      // Update local profile cache
-      if (purchasedTier != PremiumTier.none) {
-        final profileRepo = ref.read(userProfileRepoProvider);
-        await profileRepo.updatePremiumTier(purchasedTier.name);
+      final access = await service.purchase(package);
+      if (!mounted) return;
+      final purchasedTier = access.tier;
+      final expectedTier = tier == 'essentials' ? PremiumTier.essentials : PremiumTier.premium;
+      if (purchasedTier != expectedTier) {
+        throw StateError('The selected subscription is not yet verified. Restore purchases or contact support; do not purchase again.');
       }
 
       // Track analytics
-      ref.read(analyticsProvider).logSubscriptionStarted(
-            tier: tier,
+      ref
+          .read(analyticsProvider)
+          .logSubscriptionStarted(
+            tier: purchasedTier.name,
             period: _isYearly ? 'yearly' : 'monthly',
           );
 
@@ -472,7 +486,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Welcome to Lyva ${tier == 'premium' ? 'Premium' : 'Essentials'}!'),
+            content: Text(
+              'Welcome to Lyva ${purchasedTier == PremiumTier.premium ? 'Premium' : 'Essentials'}!',
+            ),
             backgroundColor: AppColors.primary,
           ),
         );
@@ -510,17 +526,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Future<void> _restorePurchases() async {
+    if (!ref.read(accountSessionProvider).recoverable) {
+      await Navigator.pushNamed(context, '/account');
+      return;
+    }
     setState(() => _purchasing = true);
 
     try {
       final service = ref.read(premiumServiceProvider);
-      final customerInfo = await service.restorePurchases();
-      final tier = service.getTierFromCustomerInfo(customerInfo);
+      final access = await service.restorePurchases();
+      if (!mounted) return;
+      final tier = access.tier;
 
       if (tier != PremiumTier.none) {
-        final profileRepo = ref.read(userProfileRepoProvider);
-        await profileRepo.updatePremiumTier(tier.name);
-
         ref.read(analyticsProvider).logSubscriptionRestored(tier: tier.name);
         ref.invalidate(userProfileProvider);
         ref.invalidate(premiumAccessProvider);
@@ -686,24 +704,26 @@ class _TierCard extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Features
-                ...features.map((f) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check, size: 18, color: accentColor),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              f,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textPrimary,
-                              ),
+                ...features.map(
+                  (f) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check, size: 18, color: accentColor),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            f,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                        ],
-                      ),
-                    )),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
                 const SizedBox(height: 16),
 
@@ -713,7 +733,9 @@ class _TierCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: purchasing ? null : onSubscribe,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: highlighted ? accentColor : AppColors.surface,
+                      backgroundColor: highlighted
+                          ? accentColor
+                          : AppColors.surface,
                       foregroundColor: highlighted ? Colors.white : accentColor,
                       side: highlighted ? null : BorderSide(color: accentColor),
                       disabledBackgroundColor: accentColor.withOpacity(0.4),

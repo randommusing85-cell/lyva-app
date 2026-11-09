@@ -1,6 +1,7 @@
+import '../widgets/personalization_boundary.dart';
 import 'dart:convert';
 
-import 'package:cloud_functions/cloud_functions.dart';
+import '../services/safety_callable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,14 +10,14 @@ import '../state/providers.dart';
 import '../services/analytics_service.dart';
 import '../widgets/generating_overlay.dart';
 
-class PlanScreen extends ConsumerStatefulWidget {
-  const PlanScreen({super.key});
+class _PlanScreenContent extends ConsumerStatefulWidget {
+  const _PlanScreenContent();
 
   @override
-  ConsumerState<PlanScreen> createState() => _PlanScreenState();
+  ConsumerState<_PlanScreenContent> createState() => _PlanScreenState();
 }
 
-class _PlanScreenState extends ConsumerState<PlanScreen> {
+class _PlanScreenState extends ConsumerState<_PlanScreenContent> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _ageCtrl;
@@ -85,7 +86,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
           'Fine-tuning protein requirements...',
         ],
         task: () async {
-          final callable = FirebaseFunctions.instance.httpsCallable('generatePlan');
+          final callable = SafetyCallable('generatePlan');
           final res = await callable.call({
             "age": int.parse(_ageCtrl.text.trim()),
             "sex": _sex,
@@ -99,7 +100,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         },
       );
 
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
 
       if (data?["ok"] == true) {
         final planJson = Map<String, dynamic>.from(data!["plan"] as Map);
@@ -114,7 +115,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
 
         // Show plan in popup dialog
         if (mounted) {
-          final shouldSave = await showDialog<bool>(
+          final shouldSave = await showPersonalizationDialog<bool>(
             context: context,
             barrierDismissible: false,
             builder: (ctx) => _PlanPreviewDialog(planJson: planJson),
@@ -134,7 +135,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         }
       }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -545,4 +546,9 @@ class _MacroChip extends StatelessWidget {
       ),
     );
   }
+}
+class PlanScreen extends StatelessWidget {
+  const PlanScreen({super.key});
+  @override
+  Widget build(BuildContext context) => PersonalizationBoundary(child: const _PlanScreenContent());
 }

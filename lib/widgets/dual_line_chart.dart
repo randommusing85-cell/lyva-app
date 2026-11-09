@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 /// A dual-line chart widget displaying two data series with separate colors.
 /// Used for body composition trends (weight + waist measurements).
 class DualLineChart extends StatelessWidget {
-  final List<double> data1;
-  final List<double> data2;
+  final List<double?> data1;
+  final List<double?> data2;
   final Color color1;
   final Color color2;
   final String label1;
@@ -25,7 +25,7 @@ class DualLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (data1.isEmpty && data2.isEmpty) {
+    if ([...data1, ...data2].whereType<double>().where((v) => v.isFinite && v > 0).isEmpty) {
       return const SizedBox(
         height: 140,
         child: Center(child: Text('No data yet')),
@@ -86,8 +86,8 @@ class DualLineChart extends StatelessWidget {
 }
 
 class _DualLinePainter extends CustomPainter {
-  final List<double> data1;
-  final List<double> data2;
+  final List<double?> data1;
+  final List<double?> data2;
   final Color color1;
   final Color color2;
 
@@ -104,7 +104,7 @@ class _DualLinePainter extends CustomPainter {
     _drawLine(canvas, size, data2, color2);
   }
 
-  void _drawLine(Canvas canvas, Size size, List<double> data, Color color) {
+  void _drawLine(Canvas canvas, Size size, List<double?> data, Color color) {
     if (data.isEmpty) return;
 
     final paint = Paint()
@@ -117,7 +117,7 @@ class _DualLinePainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final allValues = [...data1, ...data2].where((v) => v > 0).toList();
+    final allValues = [...data1, ...data2].whereType<double>().where((v) => v.isFinite && v > 0).toList();
     if (allValues.isEmpty) return;
 
     final minVal = allValues.reduce(min) - 1;
@@ -129,17 +129,20 @@ class _DualLinePainter extends CustomPainter {
     final points = <Offset>[];
     final count = data.length;
 
+    var connected = false;
     for (int i = 0; i < count; i++) {
-      if (data[i] <= 0) continue;
+      final value = data[i];
+      if (value == null || !value.isFinite || value <= 0) { connected = false; continue; }
       final x = count == 1 ? size.width / 2 : size.width * i / (count - 1);
-      final y = size.height - (size.height * (data[i] - minVal) / range);
+      final y = size.height - (size.height * (value - minVal) / range);
       points.add(Offset(x, y));
 
-      if (points.length == 1) {
+      if (!connected) {
         path.moveTo(x, y);
       } else {
         path.lineTo(x, y);
       }
+      connected = true;
     }
 
     canvas.drawPath(path, paint);

@@ -1,0 +1,112 @@
+# Reconciled candidate; hosted CI execution is not yet verified.
+# Manual, build-only. No signing credentials, store uploads or deployment.
+name: Lyva build checks
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lyva-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install pinned Flutter
+        shell: bash
+        run: |
+          git clone --depth 1 --branch 3.38.9 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "67323de285b00232883f53b84095eb72be97d35c"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - run: flutter --version
+      - run: flutter pub get --enforce-lockfile
+      # Reports all warnings/info, including future ones; NOT a baseline-delta gate.
+      # Existing reconciled baseline: 300 diagnostics, zero errors; errors remain fatal.
+      - run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+      - run: flutter test --no-pub
+  android:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '21.0.8'
+      - name: Install exact Android build dependencies
+        shell: bash
+        run: |
+          sdkmanager 'platforms;android-36' 'platforms;android-34' 'build-tools;35.0.0' 'ndk;28.2.13676358' 'cmake;3.22.1'
+          # No blanket license acceptance. Missing terms must be reviewed separately.
+      - name: Install pinned Flutter
+        shell: bash
+        run: |
+          git clone --depth 1 --branch 3.38.9 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "67323de285b00232883f53b84095eb72be97d35c"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - run: flutter --version
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build apk --debug --no-pub
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lyva-android-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+  ios-simulator:
+    needs: checks
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Require validated Xcode version
+        shell: bash
+        run: |
+          # Hosted image availability must be checked before enabling this draft.
+          test -d /Applications/Xcode_26.6.app/Contents/Developer || { echo 'Required Xcode 26.6 is absent from this runner image.'; exit 1; }
+          echo 'DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer' >> "$GITHUB_ENV"
+      - name: Verify Xcode
+        run: xcodebuild -version
+      - name: Install pinned CocoaPods
+        run: gem install cocoapods --version 1.16.2 --no-document --user-install
+      - name: Select pinned CocoaPods
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/lyva-bin"
+          cat > "$RUNNER_TEMP/lyva-bin/pod" <<'POD'
+          #!/bin/bash
+          exec ruby -r rubygems -e 'gem "cocoapods", "=1.16.2"; load Gem.bin_path("cocoapods", "pod", "=1.16.2")' -- "$@"
+          POD
+          chmod +x "$RUNNER_TEMP/lyva-bin/pod"
+          echo "$RUNNER_TEMP/lyva-bin" >> "$GITHUB_PATH"
+      - name: Install pinned Flutter
+        shell: bash
+        run: |
+          git clone --depth 1 --branch 3.38.9 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "67323de285b00232883f53b84095eb72be97d35c"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - run: flutter --version
+      - run: flutter pub get --enforce-lockfile
+      - name: Verify CocoaPods
+        run: test "$(pod --version)" = '1.16.2'
+      - run: flutter build ios --simulator --debug --no-pub
+      - name: Reject CocoaPods lockfile drift
+        if: always()
+        run: git diff --exit-code -- ios/Podfile.lock
+      - name: Package simulator app preserving bundle structure
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app "$RUNNER_TEMP/lyva-ios-simulator.zip"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lyva-ios-simulator
+          path: ${{ runner.temp }}/lyva-ios-simulator.zip
+          if-no-files-found: error
+          retention-days: 7

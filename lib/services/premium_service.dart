@@ -1,6 +1,7 @@
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../models/user_profile.dart';
+import 'account_access_service.dart';
 
 // ============================================================================
 // ENUMS
@@ -8,9 +9,9 @@ import '../models/user_profile.dart';
 
 /// Subscription tier
 enum PremiumTier {
-  none,       // No subscription
+  none, // No subscription
   essentials, // $4.99/mo or $39.99/yr
-  premium,    // $9.99/mo or $79.99/yr
+  premium, // $9.99/mo or $79.99/yr
 }
 
 /// Access type
@@ -38,12 +39,11 @@ class PremiumAccessStatus {
   factory PremiumAccessStatus.subscribed(PremiumTier tier) =>
       PremiumAccessStatus._(type: PremiumAccessType.premium, tier: tier);
 
-  factory PremiumAccessStatus.trial(int daysRemaining) =>
-      PremiumAccessStatus._(
-        type: PremiumAccessType.trial,
-        tier: PremiumTier.premium, // Trial unlocks everything
-        trialDaysRemaining: daysRemaining,
-      );
+  factory PremiumAccessStatus.trial(int daysRemaining) => PremiumAccessStatus._(
+    type: PremiumAccessType.trial,
+    tier: PremiumTier.premium, // Trial unlocks everything
+    trialDaysRemaining: daysRemaining,
+  );
 
   /// Whether user has any access (subscription or trial)
   bool get hasAccess =>
@@ -80,16 +80,56 @@ class PremiumAccessStatus {
 /// Premium features with tier assignment
 enum PremiumFeature {
   // Premium tier features (AI-powered)
-  aiCoaching('ai_coaching', 'AI Coaching', 'Get personalized AI coaching conversations', PremiumTier.premium),
-  aiMemory('ai_memory', 'AI Memory', 'AI learns your patterns and gives smarter advice over time', PremiumTier.premium),
-  progressPhotos('progress_photos', 'Progress Photos', 'Upload photos for AI body analysis and celeb comparisons', PremiumTier.premium),
-  cyclePredictions('cycle_predictions', 'Cycle Predictions', 'AI-powered period cycle predictions and training adjustments', PremiumTier.premium),
+  aiCoaching(
+    'ai_coaching',
+    'AI Coaching',
+    'Get personalized AI coaching conversations',
+    PremiumTier.premium,
+  ),
+  aiMemory(
+    'ai_memory',
+    'AI Memory',
+    'AI learns your patterns and gives smarter advice over time',
+    PremiumTier.premium,
+  ),
+  progressPhotos(
+    'progress_photos',
+    'Progress Photos',
+    'Upload photos for AI body analysis and celeb comparisons',
+    PremiumTier.premium,
+  ),
+  cyclePredictions(
+    'cycle_predictions',
+    'Cycle Tracker',
+    'Recorded cycle events and optional calendar-only estimates',
+    PremiumTier.premium,
+  ),
 
   // Essentials tier features
-  advancedAnalytics('advanced_analytics', 'Advanced Analytics', 'Detailed trends and insights', PremiumTier.essentials),
-  mealScanner('meal_scanner', 'Meal Scanner', 'Scan meals for instant nutrition info', PremiumTier.essentials),
-  customWorkouts('custom_workouts', 'Custom Workouts', 'Build your own workout routines', PremiumTier.essentials),
-  exportData('export_data', 'Export Data', 'Export your progress data', PremiumTier.essentials);
+  advancedAnalytics(
+    'advanced_analytics',
+    'Advanced Analytics',
+    'Detailed trends and insights',
+    PremiumTier.essentials,
+  ),
+  mealScanner(
+    'meal_scanner',
+    'Meal Scanner',
+    'Scan meals for instant nutrition info',
+    PremiumTier.essentials,
+  ),
+  customWorkouts(
+    'custom_workouts',
+    'Custom Workouts',
+    'Build your own workout routines',
+    PremiumTier.essentials,
+  ),
+  exportData(
+    'export_data',
+    'Export Data',
+    'Export your progress data',
+    PremiumTier.essentials,
+  );
 
   final String id;
   final String name;
@@ -105,6 +145,41 @@ enum PremiumFeature {
 
 /// Service for managing premium access, subscriptions, and trial
 class PremiumService {
+  final AccountAccessService account;
+  PremiumService({AccountAccessService? account})
+    : account =
+          account ??
+          AccountAccessService(
+            session: AccountSession(),
+            backend: const UnavailableAccountBackend(),
+            currentRevenueCatId: () => Purchases.appUserID,
+          );
+
+  PremiumAccessStatus _verified(VerifiedPremiumAccess access) =>
+      PremiumAccessStatus.subscribed(
+        access.tier == VerifiedTier.premium
+            ? PremiumTier.premium
+            : PremiumTier.essentials,
+      );
+
+  // Exact existing App Store identifiers. Never infer a tier from price.
+  static const essentialsMonthlyProductId = 'lyva_essentials_monthly';
+  static const essentialsAnnualProductId = 'lyva_essentials_annually';
+  static const premiumMonthlyProductId = 'lyva_premium_monthly';
+  static const premiumAnnualProductId = 'lyva_premium_annually';
+
+  static String productIdFor(PremiumTier tier, {required bool yearly}) {
+    return switch ((tier, yearly)) {
+      (PremiumTier.essentials, false) => essentialsMonthlyProductId,
+      (PremiumTier.essentials, true) => essentialsAnnualProductId,
+      (PremiumTier.premium, false) => premiumMonthlyProductId,
+      (PremiumTier.premium, true) => premiumAnnualProductId,
+      (PremiumTier.none, _) => throw ArgumentError(
+        'PremiumTier.none does not have a product identifier.',
+      ),
+    };
+  }
+
   static const int trialDurationDays = 7;
 
   // RevenueCat entitlement identifiers
@@ -157,19 +232,31 @@ class PremiumService {
 
   /// Remaining AI coach messages this month
   int coachMessagesRemaining(UserProfile profile) {
-    return (aiCoachMessageCap - profile.aiCoachMessagesUsed).clamp(0, aiCoachMessageCap);
+    return (aiCoachMessageCap - profile.aiCoachMessagesUsed).clamp(
+      0,
+      aiCoachMessageCap,
+    );
   }
 
   /// Remaining photo analyses this month
   int photoAnalysesRemaining(UserProfile profile) {
-    return (photoAnalysisCap - profile.photoAnalysesUsed).clamp(0, photoAnalysisCap);
+    return (photoAnalysisCap - profile.photoAnalysesUsed).clamp(
+      0,
+      photoAnalysisCap,
+    );
   }
 
   // ===== REVENUECAT INITIALIZATION =====
 
-  /// Initialize RevenueCat SDK. Call once at app startup.
-  static Future<void> initRevenueCat({required String apiKey}) async {
-    await Purchases.configure(PurchasesConfiguration(apiKey));
+  /// Billing setup must not prevent guests from using local tracking.
+  static Future<bool> initRevenueCat({required String apiKey}) async {
+    if (apiKey.isEmpty || apiKey.contains('YOUR_')) return false;
+    try {
+      await Purchases.configure(PurchasesConfiguration(apiKey));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ===== SUBSCRIPTION STATUS =====
@@ -185,85 +272,43 @@ class PremiumService {
     return PremiumTier.none;
   }
 
-  /// Get access status combining RevenueCat subscription + local trial.
-  /// RevenueCat is the source of truth for paid subscriptions.
+  /// Paid access requires a recoverable account and fresh server verification.
+  /// Local trial dates are preserved, but the trial policy is not yet verified.
   Future<PremiumAccessStatus> getAccessStatusAsync(UserProfile? profile) async {
-    // 1. Check RevenueCat first (paid subscription)
     try {
-      final customerInfo = await Purchases.getCustomerInfo();
-      final tier = getTierFromCustomerInfo(customerInfo);
-      if (tier != PremiumTier.none) {
-        return PremiumAccessStatus.subscribed(tier);
-      }
+      final access = await account.verifyPremium();
+      return access == null ? PremiumAccessStatus.none : _verified(access);
     } catch (_) {
-      // Offline or SDK not configured — fall through to local
+      return PremiumAccessStatus.none;
     }
-
-    // 2. Fall back to local trial/profile check
-    return getAccessStatus(profile);
   }
 
-  /// Synchronous access status check (local only, for backward compat)
-  PremiumAccessStatus getAccessStatus(UserProfile? profile) {
-    if (profile == null) return PremiumAccessStatus.none;
-    if (profile.isPremium) {
-      // Cached subscription tier
-      final tier = _tierFromString(profile.premiumTier);
-      return PremiumAccessStatus.subscribed(tier);
-    }
-
-    final trialStart = profile.premiumTrialStart;
-    if (trialStart == null) return PremiumAccessStatus.none;
-
-    final elapsed = DateTime.now().difference(trialStart).inDays;
-    final remaining = trialDurationDays - elapsed;
-
-    if (remaining > 0) return PremiumAccessStatus.trial(remaining);
-    return PremiumAccessStatus.expired;
-  }
-
-  PremiumTier _tierFromString(String? tierStr) {
-    if (tierStr == 'premium') return PremiumTier.premium;
-    if (tierStr == 'essentials') return PremiumTier.essentials;
-    return PremiumTier.premium; // Default for legacy isPremium = true
-  }
+  /// Neither a cached profile nor a local trial can authorize premium access.
+  PremiumAccessStatus getAccessStatus(UserProfile? profile) =>
+      PremiumAccessStatus.none;
 
   // ===== PURCHASE & RESTORE =====
 
   /// Fetch available offerings for the paywall
   Future<Offerings> getOfferings() => Purchases.getOfferings();
 
-  /// Purchase a package (monthly or yearly subscription)
-  Future<CustomerInfo> purchase(Package package) async {
-    final result = await Purchases.purchasePackage(package);
-    return result.customerInfo;
-  }
+  /// SDK completion alone never grants access or updates the local health profile.
+  Future<PremiumAccessStatus> purchase(Package package) async => _verified(
+    await account.billing(BillingAction.purchase, () async {
+      await Purchases.purchasePackage(package);
+    }),
+  );
 
-  /// Restore previously purchased subscriptions
-  Future<CustomerInfo> restorePurchases() => Purchases.restorePurchases();
+  Future<PremiumAccessStatus> restorePurchases() async => _verified(
+    await account.billing(BillingAction.restore, () async {
+      await Purchases.restorePurchases();
+    }),
+  );
 
   /// Get the App Store / Play Store subscription management URL
   Future<String?> getManagementUrl() async {
     final info = await Purchases.getCustomerInfo();
     return info.managementURL;
-  }
-
-  // ===== PROMO CODE REDEMPTION =====
-
-  // TODO: Replace with Cloud Function call for server-side validation
-  // e.g. final res = await FirebaseFunctions.instance
-  //   .httpsCallable('redeemPromoCode').call({'code': code});
-  static const Map<String, PremiumTier> _validPromoCodes = {
-    'PRIMEFORM2025': PremiumTier.premium,
-    'KINETICIQ': PremiumTier.premium,
-    'ESSENTIALS': PremiumTier.essentials,
-  };
-
-  /// Validate a promo code and return the tier it unlocks.
-  /// Returns null if the code is invalid.
-  PremiumTier? redeemPromoCode(String code) {
-    final normalized = code.trim().toUpperCase();
-    return _validPromoCodes[normalized];
   }
 
   // ===== TRIAL =====
@@ -279,10 +324,8 @@ class PremiumService {
 
   /// Check if trial has expired
   bool isTrialExpired(UserProfile profile) {
-    if (profile.isPremium) return false;
     final trialStart = profile.premiumTrialStart;
     if (trialStart == null) return false;
     return DateTime.now().difference(trialStart).inDays >= trialDurationDays;
   }
-
 }

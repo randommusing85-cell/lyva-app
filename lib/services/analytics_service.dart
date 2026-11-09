@@ -1,17 +1,78 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Central analytics service for tracking user behavior and events
-/// Uses Firebase Analytics for free, comprehensive tracking
+/// Optional, coarse product analytics. Health events, user properties, free text,
+/// screen names and event parameters are intentionally never sent.
 class AnalyticsService {
   static final AnalyticsService _instance = AnalyticsService._internal();
   factory AnalyticsService() => _instance;
-  AnalyticsService._internal();
+  AnalyticsService._internal() : _override = null;
+  AnalyticsService.forTesting(FirebaseAnalytics analytics)
+    : _override = analytics;
+  final FirebaseAnalytics? _override;
+  FirebaseAnalytics get _analytics => _override ?? FirebaseAnalytics.instance;
+  static const preferenceKey = 'optional_analytics_enabled_v1';
+  final enabled = ValueNotifier<bool>(false);
+  static const _legacyProperties = [
+    'age_group',
+    'sex',
+    'goal',
+    'level',
+    'equipment',
+    'training_days',
+    'tracks_cycle',
+    'postpartum_status',
+    'premium_waitlist',
+    'premium_status',
+  ];
 
-  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+  Future<void> initialize() async {
+    enabled.value = false;
+    try {
+      await _analytics.setAnalyticsCollectionEnabled(false);
+      for (final name in _legacyProperties) {
+        await _analytics.setUserProperty(name: name, value: null);
+      }
+      final preferences = await SharedPreferences.getInstance();
+      final consent = preferences.getBool(preferenceKey) ?? false;
+      if (consent) await _analytics.setAnalyticsCollectionEnabled(true);
+      enabled.value = consent;
+    } catch (_) {
+      // Optional telemetry must never block startup; default to no app events.
+      enabled.value = false;
+    }
+  }
 
-  // ===== USER PROPERTIES (Demographics) =====
+  Future<void> _consentUpdate = Future<void>.value();
+  Future<void> setCollectionEnabled(bool value) {
+    enabled.value = false;
+    _consentUpdate = _consentUpdate
+        .catchError((Object _) {})
+        .then((_) => _setCollectionEnabled(value));
+    return _consentUpdate;
+  }
 
-  /// Set user demographics - call once during onboarding
+  Future<void> _setCollectionEnabled(bool value) async {
+    enabled.value = false;
+    await _analytics.setAnalyticsCollectionEnabled(false);
+    final preferences = await SharedPreferences.getInstance();
+    if (!await preferences.setBool(preferenceKey, value)) {
+      throw StateError('Could not save analytics preference');
+    }
+    await _analytics.setAnalyticsCollectionEnabled(value);
+    enabled.value = value;
+  }
+
+  Future<void> _record(String event) async {
+    if (!enabled.value) return;
+    try {
+      await _analytics.logEvent(name: event);
+    } catch (_) {
+      // Analytics failures do not fail the user's save or purchase action.
+    }
+  }
+
   Future<void> setUserDemographics({
     required int age,
     required String sex,
@@ -22,40 +83,11 @@ class AnalyticsService {
     required bool tracksCycle,
     required String postPartumStatus,
   }) async {
-    await _analytics.setUserProperty(name: 'age_group', value: _getAgeGroup(age));
-    await _analytics.setUserProperty(name: 'sex', value: sex);
-    await _analytics.setUserProperty(name: 'goal', value: goal);
-    await _analytics.setUserProperty(name: 'level', value: level);
-    await _analytics.setUserProperty(name: 'equipment', value: equipment);
-    await _analytics.setUserProperty(
-      name: 'training_days',
-      value: trainingDaysPerWeek.toString(),
-    );
-    await _analytics.setUserProperty(
-      name: 'tracks_cycle',
-      value: tracksCycle ? 'yes' : 'no',
-    );
-    await _analytics.setUserProperty(
-      name: 'postpartum_status',
-      value: postPartumStatus,
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  String _getAgeGroup(int age) {
-    if (age < 20) return 'under_20';
-    if (age < 25) return '20_24';
-    if (age < 30) return '25_29';
-    if (age < 35) return '30_34';
-    if (age < 40) return '35_39';
-    if (age < 45) return '40_44';
-    if (age < 50) return '45_49';
-    return '50_plus';
-  }
-
-  // ===== ONBOARDING & SETUP =====
 
   Future<void> logOnboardingStarted() async {
-    await _analytics.logEvent(name: 'onboarding_started');
+    await _record('onboarding_started');
   }
 
   Future<void> logOnboardingCompleted({
@@ -65,68 +97,37 @@ class AnalyticsService {
     required bool tracksCycle,
     required bool isPostPartum,
   }) async {
-    await _analytics.logEvent(
-      name: 'onboarding_completed',
-      parameters: {
-        'age_group': _getAgeGroup(age),
-        'sex': sex,
-        'goal': goal,
-        'tracks_cycle': tracksCycle ? 'yes' : 'no',
-        'is_postpartum': isPostPartum ? 'yes' : 'no',
-      },
-    );
+    await _record('onboarding_completed');
   }
 
   Future<void> logSetupGuideViewed() async {
-    await _analytics.logEvent(name: 'setup_guide_viewed');
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logSetupGuideSkipped() async {
-    await _analytics.logEvent(name: 'setup_guide_skipped');
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== NUTRITION PLAN =====
 
   Future<void> logNutritionPlanGenerated({
     required String goal,
     required int calories,
     required int trainingDays,
   }) async {
-    await _analytics.logEvent(
-      name: 'nutrition_plan_generated',
-      parameters: {
-        'goal': goal,
-        'calories': calories,
-        'training_days': trainingDays,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logNutritionPlanSaved({
     required String planName,
     required int calories,
   }) async {
-    await _analytics.logEvent(
-      name: 'nutrition_plan_saved',
-      parameters: {
-        'plan_name': planName,
-        'calories': calories,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logNutritionPlanRegenerated({
     required int daysSinceLastPlan,
   }) async {
-    await _analytics.logEvent(
-      name: 'nutrition_plan_regenerated',
-      parameters: {
-        'days_since_last': daysSinceLastPlan,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== MEAL LOGGING =====
 
   Future<void> logMealLogged({
     required String mealType,
@@ -135,28 +136,11 @@ class AnalyticsService {
     required int fatG,
     required bool hasDescription,
   }) async {
-    await _analytics.logEvent(
-      name: 'meal_logged',
-      parameters: {
-        'meal_type': mealType,
-        'protein_g': proteinG,
-        'carbs_g': carbsG,
-        'fat_g': fatG,
-        'has_description': hasDescription ? 'yes' : 'no',
-        'total_calories': (proteinG * 4) + (carbsG * 4) + (fatG * 9),
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
-  Future<void> logMealDeleted({
-    required String mealType,
-  }) async {
-    await _analytics.logEvent(
-      name: 'meal_deleted',
-      parameters: {
-        'meal_type': mealType,
-      },
-    );
+  Future<void> logMealDeleted({required String mealType}) async {
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logDailyMacrosCompleted({
@@ -164,70 +148,35 @@ class AnalyticsService {
     required int targetCalories,
     required double adherencePercent,
   }) async {
-    await _analytics.logEvent(
-      name: 'daily_macros_completed',
-      parameters: {
-        'total_calories': totalCalories,
-        'target_calories': targetCalories,
-        'adherence_percent': adherencePercent.round(),
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== WORKOUT PLAN =====
 
   Future<void> logWorkoutPlanGenerated({
     required String level,
     required String equipment,
     required int daysPerWeek,
   }) async {
-    await _analytics.logEvent(
-      name: 'workout_plan_generated',
-      parameters: {
-        'level': level,
-        'equipment': equipment,
-        'days_per_week': daysPerWeek,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logWorkoutPlanSaved({
     required String planName,
     required int daysPerWeek,
   }) async {
-    await _analytics.logEvent(
-      name: 'workout_plan_saved',
-      parameters: {
-        'plan_name': planName,
-        'days_per_week': daysPerWeek,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logWorkoutPlanRegenerated({
     required int daysSinceLastPlan,
   }) async {
-    await _analytics.logEvent(
-      name: 'workout_plan_regenerated',
-      parameters: {
-        'days_since_last': daysSinceLastPlan,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== WORKOUT SESSIONS =====
 
   Future<void> logWorkoutStarted({
     required int dayIndex,
     required int totalDays,
   }) async {
-    await _analytics.logEvent(
-      name: 'workout_started',
-      parameters: {
-        'day_index': dayIndex,
-        'total_days': totalDays,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logWorkoutCompleted({
@@ -236,16 +185,7 @@ class AnalyticsService {
     required int exercisesCompleted,
     required int totalExercises,
   }) async {
-    await _analytics.logEvent(
-      name: 'workout_completed',
-      parameters: {
-        'day_index': dayIndex,
-        'total_days': totalDays,
-        'exercises_completed': exercisesCompleted,
-        'total_exercises': totalExercises,
-        'completion_rate': ((exercisesCompleted / totalExercises) * 100).round(),
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logWeeklyWorkoutCompleted({
@@ -253,18 +193,8 @@ class AnalyticsService {
     required int completedDays,
     required int totalDays,
   }) async {
-    await _analytics.logEvent(
-      name: 'weekly_workout_completed',
-      parameters: {
-        'week_number': weekNumber,
-        'completed_days': completedDays,
-        'total_days': totalDays,
-        'completion_rate': ((completedDays / totalDays) * 100).round(),
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== CHECK-INS =====
 
   Future<void> logCheckInCompleted({
     required double weightKg,
@@ -272,41 +202,18 @@ class AnalyticsService {
     required int stepsToday,
     required bool hasNote,
   }) async {
-    await _analytics.logEvent(
-      name: 'checkin_completed',
-      parameters: {
-        'weight_kg': weightKg.round(),
-        'waist_cm': waistCm.round(),
-        'steps_today': stepsToday,
-        'has_note': hasNote ? 'yes' : 'no',
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
-  Future<void> logCheckInStreak({
-    required int consecutiveDays,
-  }) async {
-    await _analytics.logEvent(
-      name: 'checkin_streak',
-      parameters: {
-        'consecutive_days': consecutiveDays,
-      },
-    );
+  Future<void> logCheckInStreak({required int consecutiveDays}) async {
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== AI COACH =====
 
   Future<void> logAiCoachQueried({
     required String type, // 'nutrition' or 'workout'
     required int daysSincePlanCreated,
   }) async {
-    await _analytics.logEvent(
-      name: 'ai_coach_queried',
-      parameters: {
-        'type': type,
-        'days_since_plan': daysSincePlanCreated,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logAiCoachAdjustmentApplied({
@@ -314,407 +221,218 @@ class AnalyticsService {
     required String action, // 'adjust', 'hold', 'reassess'
     required int calorieDelta,
   }) async {
-    await _analytics.logEvent(
-      name: 'ai_coach_adjustment_applied',
-      parameters: {
-        'type': type,
-        'action': action,
-        'calorie_delta': calorieDelta,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logAiCoachLockEncountered({
     required String type,
     required int daysRemaining,
   }) async {
-    await _analytics.logEvent(
-      name: 'ai_coach_lock_encountered',
-      parameters: {
-        'type': type,
-        'days_remaining': daysRemaining,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== NAVIGATION & SCREENS =====
-
   Future<void> logScreenView(String screenName) async {
-    await _analytics.logScreenView(screenName: screenName);
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logTrendsViewed() async {
-    await _analytics.logEvent(name: 'trends_viewed');
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logSettingsViewed() async {
-    await _analytics.logEvent(name: 'settings_viewed');
+    await _record('settings_viewed');
   }
-
-  // ===== CYCLE TRACKING (Women) =====
 
   Future<void> logCyclePhaseViewed({
     required String phase,
     required int cycleDay,
   }) async {
-    await _analytics.logEvent(
-      name: 'cycle_phase_viewed',
-      parameters: {
-        'phase': phase,
-        'cycle_day': cycleDay,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
-  Future<void> logCycleEducationViewed({
-    required String phase,
-  }) async {
-    await _analytics.logEvent(
-      name: 'cycle_education_viewed',
-      parameters: {
-        'phase': phase,
-      },
-    );
+  Future<void> logCycleEducationViewed({required String phase}) async {
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== POST-PARTUM (Women) =====
 
   Future<void> logPostPartumGuidanceViewed({
     required String phase,
     required int weeksPostPartum,
   }) async {
-    await _analytics.logEvent(
-      name: 'postpartum_guidance_viewed',
-      parameters: {
-        'phase': phase,
-        'weeks_postpartum': weeksPostPartum,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logPostPartumRedFlagsViewed() async {
-    await _analytics.logEvent(name: 'postpartum_red_flags_viewed');
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== PROFILE EDITING =====
 
   Future<void> logProfileEditStarted() async {
-    await _analytics.logEvent(name: 'profile_edit_started');
+    // Deliberately excluded from optional analytics.
   }
 
-  Future<void> logProfileUpdated({
-    required List<String> fieldsChanged,
-  }) async {
-    await _analytics.logEvent(
-      name: 'profile_updated',
-      parameters: {
-        'fields_changed': fieldsChanged.join(','),
-        'num_fields': fieldsChanged.length,
-      },
-    );
+  Future<void> logProfileUpdated({required List<String> fieldsChanged}) async {
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== RETENTION & ENGAGEMENT =====
 
   Future<void> logAppOpened() async {
-    await _analytics.logEvent(name: 'app_opened');
+    await _record('app_opened');
   }
 
   Future<void> logSessionStart() async {
-    await _analytics.logEvent(name: 'session_start');
+    // Deliberately excluded from optional analytics.
   }
 
-  Future<void> logSessionEnd({
-    required int durationSeconds,
-  }) async {
-    await _analytics.logEvent(
-      name: 'session_end',
-      parameters: {
-        'duration_seconds': durationSeconds,
-        'duration_minutes': (durationSeconds / 60).round(),
-      },
-    );
+  Future<void> logSessionEnd({required int durationSeconds}) async {
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== ERRORS & ISSUES =====
 
   Future<void> logError({
     required String errorType,
     required String screen,
     String? details,
   }) async {
-    await _analytics.logEvent(
-      name: 'error_occurred',
-      parameters: {
-        'error_type': errorType,
-        'screen': screen,
-        if (details != null) 'details': details,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== FEATURE FLAGS & A/B TESTING =====
-
-  Future<void> logFeatureUsed({
-    required String featureName,
-  }) async {
-    await _analytics.logEvent(
-      name: 'feature_used',
-      parameters: {
-        'feature': featureName,
-      },
-    );
+  Future<void> logFeatureUsed({required String featureName}) async {
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== HELP & SUPPORT =====
-
-  Future<void> logHelpViewed({
-    required String topic,
-  }) async {
-    await _analytics.logEvent(
-      name: 'help_viewed',
-      parameters: {
-        'topic': topic,
-      },
-    );
+  Future<void> logHelpViewed({required String topic}) async {
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logFeedbackSubmitted() async {
-    await _analytics.logEvent(name: 'feedback_submitted');
+    await _record('feedback_submitted');
   }
 
   Future<void> logMedicalDisclaimerViewed() async {
-    await _analytics.logEvent(name: 'medical_disclaimer_viewed');
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== PREMIUM & WAITLIST =====
-
-  Future<void> logPremiumFeatureTapped({
-    required String featureId,
-  }) async {
-    await _analytics.logEvent(
-      name: 'premium_feature_tapped',
-      parameters: {
-        'feature_id': featureId,
-      },
-    );
+  Future<void> logPremiumFeatureTapped({required String featureId}) async {
+    // Deliberately excluded from optional analytics.
   }
 
-  Future<void> logPremiumWaitlistViewed({
-    required String featureId,
-  }) async {
-    await _analytics.logEvent(
-      name: 'premium_waitlist_viewed',
-      parameters: {
-        'trigger_feature': featureId,
-      },
-    );
+  Future<void> logPremiumWaitlistViewed({required String featureId}) async {
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logPremiumWaitlistJoined({
     required String email,
     required List<String> features,
   }) async {
-    await _analytics.logEvent(
-      name: 'premium_waitlist_joined',
-      parameters: {
-        'num_features_selected': features.length,
-        'features': features.join(','),
-      },
-    );
-    // Also set user property
-    await _analytics.setUserProperty(
-      name: 'premium_waitlist',
-      value: 'joined',
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logPremiumGateEncountered({
     required String featureId,
     required String screen,
   }) async {
-    await _analytics.logEvent(
-      name: 'premium_gate_encountered',
-      parameters: {
-        'feature_id': featureId,
-        'screen': screen,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== PREMIUM TRIAL =====
-
   Future<void> logPremiumTrialStarted() async {
-    await _analytics.logEvent(name: 'premium_trial_started');
-    await _analytics.setUserProperty(name: 'premium_status', value: 'trial');
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logPremiumTrialExpired() async {
-    await _analytics.logEvent(name: 'premium_trial_expired');
-    await _analytics.setUserProperty(name: 'premium_status', value: 'expired');
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== AI COACHING (Premium) =====
-
   Future<void> logAiCoachSessionStarted() async {
-    await _analytics.logEvent(name: 'ai_coach_session_started');
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logAiCoachMessageSent() async {
-    await _analytics.logEvent(name: 'ai_coach_message_sent');
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== PROGRESS PHOTOS (Premium) =====
-
   Future<void> logProgressPhotoTaken() async {
-    await _analytics.logEvent(name: 'progress_photo_taken');
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logProgressPhotoAnalyzed() async {
-    await _analytics.logEvent(name: 'progress_photo_analyzed');
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== CYCLE PREDICTIONS (Premium) =====
-
   Future<void> logCyclePredictionGenerated() async {
-    await _analytics.logEvent(name: 'cycle_prediction_generated');
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logCycleSymptomLogged({
     required String symptomType,
     required int severity,
   }) async {
-    await _analytics.logEvent(
-      name: 'cycle_symptom_logged',
-      parameters: {
-        'symptom_type': symptomType,
-        'severity': severity,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== ADVANCED ANALYTICS (Premium) =====
 
   Future<void> logAdvancedAnalyticsViewed({required String dateRange}) async {
-    await _analytics.logEvent(
-      name: 'advanced_analytics_viewed',
-      parameters: {'date_range': dateRange},
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== EXPORT DATA (Premium) =====
 
   Future<void> logDataExported({
     required String format,
     required List<String> dataTypes,
   }) async {
-    await _analytics.logEvent(
-      name: 'data_exported',
-      parameters: {
-        'format': format,
-        'data_types': dataTypes.join(','),
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
-
-  // ===== CUSTOM WORKOUTS (Premium) =====
 
   Future<void> logCustomWorkoutCreated({
     required int daysPerWeek,
     required int totalExercises,
   }) async {
-    await _analytics.logEvent(
-      name: 'custom_workout_created',
-      parameters: {
-        'days_per_week': daysPerWeek,
-        'total_exercises': totalExercises,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logCustomWorkoutActivated() async {
-    await _analytics.logEvent(name: 'custom_workout_activated');
+    // Deliberately excluded from optional analytics.
   }
 
-  // ===== SUBSCRIPTION EVENTS =====
-
   Future<void> logPaywallViewed({String? source}) async {
-    await _analytics.logEvent(
-      name: 'paywall_viewed',
-      parameters: {'source': source ?? 'unknown'},
-    );
+    await _record('paywall_viewed');
   }
 
   Future<void> logSubscriptionStarted({
     required String tier,
     required String period,
   }) async {
-    await _analytics.logEvent(
-      name: 'subscription_started',
-      parameters: {'tier': tier, 'period': period},
-    );
+    await _record('subscription_started');
   }
 
   Future<void> logSubscriptionRestored({required String tier}) async {
-    await _analytics.logEvent(
-      name: 'subscription_restored',
-      parameters: {'tier': tier},
-    );
+    await _record('subscription_restored');
   }
 
   Future<void> logSubscriptionUpgraded({
     required String fromTier,
     required String toTier,
   }) async {
-    await _analytics.logEvent(
-      name: 'subscription_upgraded',
-      parameters: {'from_tier': fromTier, 'to_tier': toTier},
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logPaywallDismissed() async {
-    await _analytics.logEvent(name: 'paywall_dismissed');
+    await _record('paywall_dismissed');
   }
 
-  // ===== PLATEAU & REFEED EVENTS =====
-
   Future<void> logPlateauDetected({
-    required double weightChangeKg,
+    required double? weightChangeKg,
     required int daysInDeficit,
   }) async {
-    await _analytics.logEvent(
-      name: 'plateau_detected',
-      parameters: {
-        'weight_change_kg': weightChangeKg,
-        'days_in_deficit': daysInDeficit,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logRefeedStarted({
     required int maintenanceCalories,
     required int previousCalories,
   }) async {
-    await _analytics.logEvent(
-      name: 'refeed_started',
-      parameters: {
-        'maintenance_calories': maintenanceCalories,
-        'previous_calories': previousCalories,
-      },
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logRefeedCompleted({required int refeedDurationDays}) async {
-    await _analytics.logEvent(
-      name: 'refeed_completed',
-      parameters: {'duration_days': refeedDurationDays},
-    );
+    // Deliberately excluded from optional analytics.
   }
 
   Future<void> logDeficitResumed({required int resumedCalories}) async {
-    await _analytics.logEvent(
-      name: 'deficit_resumed',
-      parameters: {'resumed_calories': resumedCalories},
-    );
+    // Deliberately excluded from optional analytics.
   }
 }
