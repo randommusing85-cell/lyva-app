@@ -58,3 +58,25 @@ It matches the existing local distribution identity
 `743100645AA175E182100BE6BCBBCE55A444880F`. No new key/certificate was created,
 exported or revoked; the old profile remains untouched. Existing App ID capabilities
 were retained, not modified. The script pins the new UUID.
+
+## Verified local archive/export, 2026-11-09
+
+Source commit `c4aa629` produced signed Lyva `1.0.0 (14)` using Xcode 26.6.
+All 324 Flutter tests passed; analysis reported the existing 300 warnings/info.
+Native archive and App Store Connect **local export** succeeded. The exported
+`build/ios-signed/14/export/Lyva.ipa` is 41,087,940 bytes, bundle `ai.kineticiq.lyva`,
+minimum iOS 15.5. SHA-256:
+`fe5caabeda23d8e98073d1ee10e7698f6a808216ed154fee075f486add3fe46e`.
+Both archive and extracted exported app passed deep/strict signature verification.
+Embedded profile UUID and signing certificate match the approved values above.
+No upload, tester release, or App Store submission was performed. Real-device
+functional checks and backend/clinical gates are still pending.
+
+The first local attempt (13) failed because its provisioning setting reached Pods;
+fixed by limiting the profile to the Runner product via Xcode build-variable
+indirection. Failed output is retained, not overwritten. Build 14 succeeded.
+One-time macOS keychain prompts appeared for multiple signing operations. The user
+handled authorization directly. No keychain ACL command or password handling was
+performed by this automation. Repeated prompts do not by themselves establish an
+incorrect password. Persistent “Always Allow” changes future access and requires
+an informed user decision, not an automatic workaround.
