@@ -25,19 +25,27 @@ class PremiumAccessStatus {
   final PremiumAccessType type;
   final PremiumTier tier;
   final int trialDaysRemaining;
+  final DateTime? validUntil;
 
   const PremiumAccessStatus._({
     required this.type,
     this.tier = PremiumTier.none,
     this.trialDaysRemaining = 0,
+    this.validUntil,
   });
 
   // Factories
   static const none = PremiumAccessStatus._(type: PremiumAccessType.none);
   static const expired = PremiumAccessStatus._(type: PremiumAccessType.expired);
 
-  factory PremiumAccessStatus.subscribed(PremiumTier tier) =>
-      PremiumAccessStatus._(type: PremiumAccessType.premium, tier: tier);
+  factory PremiumAccessStatus.subscribed(
+    PremiumTier tier, {
+    DateTime? validUntil,
+  }) => PremiumAccessStatus._(
+    type: PremiumAccessType.premium,
+    tier: tier,
+    validUntil: validUntil,
+  );
 
   factory PremiumAccessStatus.trial(int daysRemaining) => PremiumAccessStatus._(
     type: PremiumAccessType.trial,
@@ -47,10 +55,12 @@ class PremiumAccessStatus {
 
   /// Whether user has any access (subscription or trial)
   bool get hasAccess =>
-      type == PremiumAccessType.premium || type == PremiumAccessType.trial;
+      (validUntil == null || validUntil!.isAfter(DateTime.now())) &&
+      (type == PremiumAccessType.premium || type == PremiumAccessType.trial);
 
   /// Whether user can access a specific feature based on their tier
   bool canAccessFeature(PremiumFeature feature) {
+    if (!hasAccess) return false;
     // Trial unlocks all features
     if (type == PremiumAccessType.trial) return true;
 
@@ -160,6 +170,7 @@ class PremiumService {
         access.tier == VerifiedTier.premium
             ? PremiumTier.premium
             : PremiumTier.essentials,
+        validUntil: access.expiresAt,
       );
 
   // Exact existing App Store identifiers. Never infer a tier from price.
@@ -167,6 +178,19 @@ class PremiumService {
   static const essentialsAnnualProductId = 'lyva_essentials_annually';
   static const premiumMonthlyProductId = 'lyva_premium_monthly';
   static const premiumAnnualProductId = 'lyva_premium_annually';
+
+  // Verified against App Store Connect and RevenueCat on 2026-11-09.
+  // Google Play products must be separately reviewed before enabling Android.
+  static const reviewedProductPeriods = {
+    essentialsMonthlyProductId: 'P1M',
+    essentialsAnnualProductId: 'P1Y',
+    premiumMonthlyProductId: 'P1M',
+    premiumAnnualProductId: 'P1Y',
+  };
+
+  static bool isReviewedStoreProduct(StoreProduct product) =>
+      reviewedProductPeriods.containsKey(product.identifier) &&
+      reviewedProductPeriods[product.identifier] == product.subscriptionPeriod;
 
   static String productIdFor(PremiumTier tier, {required bool yearly}) {
     return switch ((tier, yearly)) {
@@ -249,10 +273,23 @@ class PremiumService {
   // ===== REVENUECAT INITIALIZATION =====
 
   /// Billing setup must not prevent guests from using local tracking.
-  static Future<bool> initRevenueCat({required String apiKey}) async {
-    if (apiKey.isEmpty || apiKey.contains('YOUR_')) return false;
+  static Future<bool> initRevenueCat({
+    required String apiKey,
+    required String appUserId,
+  }) async {
+    if (apiKey.isEmpty ||
+        apiKey.contains('YOUR_') ||
+        appUserId.isEmpty ||
+        appUserId.startsWith(r'$RCAnonymousID:')) {
+      return false;
+    }
     try {
-      await Purchases.configure(PurchasesConfiguration(apiKey));
+      if (await Purchases.isConfigured) {
+        return await Purchases.appUserID == appUserId;
+      }
+      await Purchases.configure(
+        PurchasesConfiguration(apiKey)..appUserID = appUserId,
+      );
       return true;
     } catch (_) {
       return false;
@@ -290,14 +327,24 @@ class PremiumService {
   // ===== PURCHASE & RESTORE =====
 
   /// Fetch available offerings for the paywall
-  Future<Offerings> getOfferings() => Purchases.getOfferings();
+  Future<Offerings> getOfferings() async {
+    await account.prepareBillingIdentity();
+    return Purchases.getOfferings();
+  }
 
   /// SDK completion alone never grants access or updates the local health profile.
-  Future<PremiumAccessStatus> purchase(Package package) async => _verified(
-    await account.billing(BillingAction.purchase, () async {
-      await Purchases.purchasePackage(package);
-    }),
-  );
+  Future<PremiumAccessStatus> purchase(Package package) async {
+    if (!isReviewedStoreProduct(package.storeProduct)) {
+      throw const AccountAccessException(
+        'This subscription is unavailable. Please refresh the available plans.',
+      );
+    }
+    return _verified(
+      await account.billing(BillingAction.purchase, () async {
+        await Purchases.purchasePackage(package);
+      }),
+    );
+  }
 
   Future<PremiumAccessStatus> restorePurchases() async => _verified(
     await account.billing(BillingAction.restore, () async {

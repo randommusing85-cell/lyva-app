@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
 import '../services/premium_service.dart';
-import '../services/analytics_service.dart';
 import '../state/providers.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
@@ -52,7 +51,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        error: (e, _) => _buildPaywall(null), // Show UI with placeholder prices
+        error: (e, _) => _buildPaywall(null), // Store prices are unavailable.
       ),
     );
   }
@@ -234,27 +233,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                               : AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _isYearly
-                              ? Colors.white.withOpacity(0.25)
-                              : AppColors.primary.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Save 33%',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: _isYearly ? Colors.white : AppColors.primary,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -267,17 +245,14 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Widget _buildEssentialsCard(Offering? offering) {
-    final packageId = _isYearly ? '\$rc_annual' : '\$rc_monthly';
     final package = _findPackage(offering, 'essentials', _isYearly);
-    final price =
-        package?.storeProduct.priceString ??
-        (_isYearly ? '\$39.99/yr' : '\$4.99/mo');
+    final price = package?.storeProduct.priceString ?? 'Price unavailable';
     final isHighlighted = widget.highlightTier == PremiumTier.essentials;
 
     return _TierCard(
       tierName: 'Essentials',
       price: price,
-      period: _isYearly ? '/year' : '/month',
+      period: package == null ? '' : (_isYearly ? '/year' : '/month'),
       features: const [
         'Advanced Analytics',
         'Export Data (CSV & PDF)',
@@ -287,7 +262,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       highlighted: isHighlighted,
       accentColor: AppColors.primary,
       purchasing: _purchasing && _purchasingPackageId == 'essentials',
-      onSubscribe: package != null
+      onSubscribe: package != null && !_purchasing
           ? () => _handlePurchase(package, 'essentials')
           : null,
     );
@@ -295,15 +270,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Widget _buildPremiumCard(Offering? offering) {
     final package = _findPackage(offering, 'premium', _isYearly);
-    final price =
-        package?.storeProduct.priceString ??
-        (_isYearly ? '\$79.99/yr' : '\$9.99/mo');
+    final price = package?.storeProduct.priceString ?? 'Price unavailable';
     final isHighlighted = widget.highlightTier != PremiumTier.essentials;
 
     return _TierCard(
       tierName: 'Premium',
       price: price,
-      period: _isYearly ? '/year' : '/month',
+      period: package == null ? '' : (_isYearly ? '/year' : '/month'),
       badge: 'BEST VALUE',
       features: const [
         'Everything in Essentials',
@@ -315,7 +288,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       highlighted: isHighlighted,
       accentColor: AppColors.seasonAccent,
       purchasing: _purchasing && _purchasingPackageId == 'premium',
-      onSubscribe: package != null
+      onSubscribe: package != null && !_purchasing
           ? () => _handlePurchase(package, 'premium')
           : null,
     );
@@ -324,9 +297,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   // Never infer a paid tier from price or package ordering.
   Package? _findPackage(Offering? offering, String tier, bool yearly) {
     if (offering == null) return null;
-    final selectedTier = tier == 'essentials' ? PremiumTier.essentials : PremiumTier.premium;
+    final selectedTier = tier == 'essentials'
+        ? PremiumTier.essentials
+        : PremiumTier.premium;
     final target = PremiumService.productIdFor(selectedTier, yearly: yearly);
-    return offering.availablePackages.where((p) => p.storeProduct.identifier == target).firstOrNull;
+    return offering.availablePackages
+        .where(
+          (p) =>
+              p.storeProduct.identifier == target &&
+              PremiumService.isReviewedStoreProduct(p.storeProduct),
+        )
+        .firstOrNull;
   }
 
   Widget _buildFeatureComparison() {
@@ -466,9 +447,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       final access = await service.purchase(package);
       if (!mounted) return;
       final purchasedTier = access.tier;
-      final expectedTier = tier == 'essentials' ? PremiumTier.essentials : PremiumTier.premium;
+      final expectedTier = tier == 'essentials'
+          ? PremiumTier.essentials
+          : PremiumTier.premium;
       if (purchasedTier != expectedTier) {
-        throw StateError('The selected subscription is not yet verified. Restore purchases or contact support; do not purchase again.');
+        throw StateError(
+          'The selected subscription is not yet verified. Restore purchases or contact support; do not purchase again.',
+        );
       }
 
       // Track analytics

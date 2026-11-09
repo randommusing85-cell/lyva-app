@@ -22,23 +22,29 @@ class IsarDb {
     if (_isar != null) return _isar!;
 
     final dir = await getApplicationDocumentsDirectory();
-    _isar = await Isar.open([
-      WeeklyReviewSchema,
-      MemorySpaceSchema,
-      MemoryEntrySchema,
-      CheckInSchema,
-      PrimePlanSchema,
-      WorkoutTemplateDocSchema,
-      WorkoutSessionDocSchema,
-      UserProfileSchema,
-      MealLogSchema,
-      FoodItemSchema,
-      CoachMessageSchema,
-      AiInsightSchema,
-      ProgressPhotoSchema,
-      CyclePredictionSchema,
-      CycleLogSchema,
-    ], directory: dir.path);
+    _isar = await Isar.open(
+      [
+        WeeklyReviewSchema,
+        MemorySpaceSchema,
+        MemoryEntrySchema,
+        CheckInSchema,
+        PrimePlanSchema,
+        WorkoutTemplateDocSchema,
+        WorkoutSessionDocSchema,
+        UserProfileSchema,
+        MealLogSchema,
+        FoodItemSchema,
+        CoachMessageSchema,
+        AiInsightSchema,
+        ProgressPhotoSchema,
+        CyclePredictionSchema,
+        CycleLogSchema,
+      ],
+      directory: dir.path,
+      name: const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')
+          ? 'lyva_billing_sandbox_v1'
+          : Isar.defaultName,
+    );
 
     return _isar!;
   }

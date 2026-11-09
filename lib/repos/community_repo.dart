@@ -36,14 +36,32 @@ class CommunityRepo {
     FirebaseStorage? storage,
     required String? Function() verifiedUid,
   }) : _verifiedUid = verifiedUid,
-       _firestore = firestore ?? FirebaseFirestore.instance,
+       _firestoreInstance = firestore ?? FirebaseFirestore.instance,
        _auth = auth ?? FirebaseAuth.instance,
-       _storage = storage ?? FirebaseStorage.instance;
+       _storageInstance = storage ?? FirebaseStorage.instance;
 
   final String? Function() _verifiedUid;
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore _firestoreInstance;
   final FirebaseAuth _auth;
-  final FirebaseStorage _storage;
+  final FirebaseStorage _storageInstance;
+
+  void _requireCommunityBuild() {
+    if (const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) {
+      throw const CommunityAccessException(
+        'Circles is unavailable in this billing test build.',
+      );
+    }
+  }
+
+  FirebaseFirestore get _firestore {
+    _requireCommunityBuild();
+    return _firestoreInstance;
+  }
+
+  FirebaseStorage get _storage {
+    _requireCommunityBuild();
+    return _storageInstance;
+  }
 
   static const int maxPostPhotoBytes = 5 * 1024 * 1024;
 
@@ -76,6 +94,7 @@ class CommunityRepo {
   };
 
   User? get currentUser {
+    if (const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) return null;
     final user = _auth.currentUser;
     if (user == null ||
         !communityIdentityMatches(
@@ -89,6 +108,9 @@ class CommunityRepo {
   }
 
   Stream<User?> watchAuthUser() {
+    if (const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) {
+      return Stream.value(null);
+    }
     return _auth.authStateChanges().map((user) {
       if (user == null ||
           !communityIdentityMatches(

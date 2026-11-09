@@ -31,6 +31,7 @@ class AnalyticsService {
     enabled.value = false;
     try {
       await _analytics.setAnalyticsCollectionEnabled(false);
+      if (const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) return;
       for (final name in _legacyProperties) {
         await _analytics.setUserProperty(name: name, value: null);
       }
@@ -56,6 +57,7 @@ class AnalyticsService {
   Future<void> _setCollectionEnabled(bool value) async {
     enabled.value = false;
     await _analytics.setAnalyticsCollectionEnabled(false);
+    if (const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) return;
     final preferences = await SharedPreferences.getInstance();
     if (!await preferences.setBool(preferenceKey, value)) {
       throw StateError('Could not save analytics preference');

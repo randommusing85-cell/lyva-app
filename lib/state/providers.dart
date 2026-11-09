@@ -8,6 +8,7 @@ import '../services/personalization_safety.dart';
 import '../services/local_memory_service.dart';
 import '../services/checkin_preferences.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
@@ -30,6 +31,7 @@ import '../services/food_api_service.dart';
 import '../services/step_tracking_service.dart';
 import '../services/premium_service.dart';
 import '../services/account_access_service.dart';
+import '../services/firebase_account_backend.dart';
 import '../services/social_auth_service.dart';
 import '../services/firebase_social_auth_gateway.dart';
 import '../services/export_service.dart';
@@ -311,13 +313,26 @@ final accountSessionProvider = ChangeNotifierProvider<AccountSession>(
   (ref) => AccountSession(),
 );
 final accountBackendProvider = Provider<AccountBackend>(
-  (ref) => const UnavailableAccountBackend(),
+  (ref) => createFirebaseAccountBackend(),
 );
 final accountAccessServiceProvider = Provider<AccountAccessService>(
   (ref) => AccountAccessService(
     session: ref.read(accountSessionProvider),
     backend: ref.watch(accountBackendProvider),
     currentRevenueCatId: () => Purchases.appUserID,
+    initializeRevenueCat: (uid) async {
+      const reviewed = bool.fromEnvironment('LYVA_BILLING_IDENTITY_REVIEWED');
+      final key = defaultTargetPlatform == TargetPlatform.iOS
+          ? const String.fromEnvironment('LYVA_REVENUECAT_IOS_KEY')
+          : defaultTargetPlatform == TargetPlatform.android
+              ? const String.fromEnvironment('LYVA_REVENUECAT_ANDROID_KEY')
+              : '';
+      if (!reviewed || !await PremiumService.initRevenueCat(apiKey: key, appUserId: uid)) {
+        throw const AccountAccessException(
+          'Billing setup needs verification or account recovery.',
+        );
+      }
+    },
   ),
 );
 final socialAuthGatewayProvider = Provider<SocialAuthGateway>((ref) => FirebaseSocialAuthGateway());
@@ -335,7 +350,7 @@ final premiumServiceProvider = Provider<PremiumService>(
   (ref) => PremiumService(account: ref.watch(accountAccessServiceProvider)),
 );
 
-/// Premium access status — checks RevenueCat subscription first, then local trial
+/// Premium access requires fresh server verification for the current account.
 final premiumAccessProvider = FutureProvider.autoDispose<PremiumAccessStatus>((
   ref,
 ) async {
@@ -345,11 +360,23 @@ final premiumAccessProvider = FutureProvider.autoDispose<PremiumAccessStatus>((
   ref.watch(customerInfoStreamProvider);
   final profile = await ref.watch(userProfileProvider.future);
   final service = ref.watch(premiumServiceProvider);
-  return service.getAccessStatusAsync(profile);
+  Timer? expiryTimer;
+  var disposed = false;
+  ref.onDispose(() { disposed = true; expiryTimer?.cancel(); });
+  final status = await service.getAccessStatusAsync(profile);
+  if (disposed) return PremiumAccessStatus.none;
+  final expiry = status.validUntil;
+  if (expiry != null) {
+    final remaining = expiry.difference(DateTime.now());
+    if (remaining <= Duration.zero) return PremiumAccessStatus.none;
+    expiryTimer = Timer(remaining, ref.invalidateSelf);
+  }
+  return status;
 });
 
 /// RevenueCat offerings (for paywall display)
 final offeringsProvider = FutureProvider<Offerings>((ref) async {
+  ref.watch(accountSessionProvider);
   final service = ref.watch(premiumServiceProvider);
   return service.getOfferings();
 });

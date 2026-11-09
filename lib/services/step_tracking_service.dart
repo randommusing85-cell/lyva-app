@@ -12,6 +12,9 @@ class StepTrackingService {
 
   /// Ensure Health is configured before use.
   Future<void> _ensureConfigured() async {
+    if (const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) {
+      throw StateError('Health access is unavailable in this billing test build.');
+    }
     if (!_configured) {
       await _health.configure();
       _configured = true;

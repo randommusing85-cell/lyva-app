@@ -228,6 +228,46 @@ void main() {
     },
   );
   test(
+    'identity initialization runs only after an accepted server permit',
+    () async {
+      var setups = 0;
+      service = AccountAccessService(
+        session: session,
+        backend: backend,
+        currentRevenueCatId: () async => sdkId,
+        now: () => clock,
+        initializeRevenueCat: (uid) async {
+          setups++;
+          expect(uid, 'a');
+        },
+      );
+      backend.binding = false;
+      await expectLater(service.prepareBillingIdentity(), denied);
+      expect(setups, 0);
+      backend.binding = true;
+      await service.prepareBillingIdentity();
+      expect(setups, 1);
+      expect(operations, 0);
+    },
+  );
+  test('account change during SDK setup prevents native purchase', () async {
+    service = AccountAccessService(
+      session: session,
+      backend: backend,
+      currentRevenueCatId: () async => sdkId,
+      now: () => clock,
+      initializeRevenueCat: (_) async {
+        session.updateFromAuthBridge(uid: 'b', recoverable: true);
+      },
+    );
+    await expectLater(
+      service.billing(BillingAction.purchase, operation),
+      denied,
+    );
+    expect(operations, 0);
+    expect(service.billingInFlight, false);
+  });
+  test(
     'disabled backend remains unavailable for signed-in identities',
     () async {
       service = AccountAccessService(

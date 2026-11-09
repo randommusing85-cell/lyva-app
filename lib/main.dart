@@ -2,15 +2,14 @@ import 'screens/community_screen.dart';
 import 'screens/community_profile_screen.dart';
 import 'screens/community_moderation_screen.dart';
 import 'screens/local_memory_screen.dart';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
-import 'services/premium_service.dart';
 import 'services/analytics_service.dart';
+import 'services/premium_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/app_shell.dart';
 import 'screens/plan_screen.dart';
@@ -53,12 +52,7 @@ void main() async {
   // Initialize notification service
   await NotificationService().init();
 
-  // Initialize RevenueCat for in-app subscriptions
-  await PremiumService.initRevenueCat(
-    apiKey: Platform.isIOS
-        ? 'appl_icVfBrmPmXeRDAIXaAEklUtTArq'
-        : 'goog_YOUR_ANDROID_REVENUECAT_KEY', // Replace with your Android key
-  );
+  // Billing is initialized with a verified account after a server permit.
 
   runApp(const ProviderScope(child: LyvaApp()));
 }
@@ -71,6 +65,13 @@ class LyvaApp extends ConsumerWidget {
     ref.watch(socialAuthControllerProvider);
     return MaterialApp(
       title: 'Lyva',
+      builder: const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')
+          ? (context, child) => Banner(
+              message: 'SANDBOX TEST',
+              location: BannerLocation.topEnd,
+              child: child ?? const SizedBox.shrink(),
+            )
+          : null,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),

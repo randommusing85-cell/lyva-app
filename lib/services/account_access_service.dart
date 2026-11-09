@@ -73,18 +73,20 @@ class UnavailableAccountBackend implements AccountBackend {
 }
 
 /// No health-profile repository or identity-mutating SDK methods are accessible
-/// here. In particular, this never calls RevenueCat logIn/logOut or merges users.
+/// here. The optional initializer must never logIn/logOut or merge users.
 class AccountAccessService {
   final AccountSession session;
   final AccountBackend backend;
   final Future<String> Function() currentRevenueCatId;
   final DateTime Function() now;
+  final Future<void> Function(String uid)? initializeRevenueCat;
   bool _billingInFlight = false;
   bool get billingInFlight => _billingInFlight;
   AccountAccessService({
     required this.session,
     required this.backend,
     required this.currentRevenueCatId,
+    this.initializeRevenueCat,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
 
@@ -119,6 +121,54 @@ class AccountAccessService {
     return result;
   }
 
+  /// Offerings use the same reviewed identity setup as purchase/restore. This
+  /// serializes setup with billing; it never launches a store transaction.
+  Future<void> prepareBillingIdentity() async {
+    final revision = _begin();
+    final uid = session.uid!;
+    if (_billingInFlight) {
+      throw const AccountAccessException('Billing is already in progress.');
+    }
+    _billingInFlight = true;
+    try {
+      await _prepareIdentity(BillingAction.purchase, revision, uid);
+    } finally {
+      _billingInFlight = false;
+    }
+  }
+
+  Future<void> _prepareIdentity(
+    BillingAction action,
+    int revision,
+    String uid,
+  ) async {
+    final permit = await backend.prepareBilling(action);
+    _check(revision, uid);
+    if (permit.uid != uid ||
+        permit.revenueCatId != uid ||
+        permit.action != action ||
+        permit.policyRevision.isEmpty ||
+        !permit.expiresAt.isAfter(now())) {
+      throw const AccountAccessException(
+        'Unable to verify this purchase or restore.',
+      );
+    }
+    await initializeRevenueCat?.call(uid);
+    _check(revision, uid);
+    final currentId = await currentRevenueCatId();
+    _check(revision, uid);
+    if (currentId != permit.revenueCatId) {
+      throw const AccountAccessException(
+        'Your purchases need account recovery before continuing.',
+      );
+    }
+    if (!permit.expiresAt.isAfter(now())) {
+      throw const AccountAccessException(
+        'Account verification expired. Please try again.',
+      );
+    }
+  }
+
   Future<VerifiedPremiumAccess> billing(
     BillingAction action,
     Future<void> Function() operation,
@@ -132,29 +182,7 @@ class AccountAccessService {
     }
     _billingInFlight = true;
     try {
-      final permit = await backend.prepareBilling(action);
-      _check(revision, uid);
-      if (permit.uid != uid ||
-          permit.revenueCatId != uid ||
-          permit.action != action ||
-          permit.policyRevision.isEmpty ||
-          !permit.expiresAt.isAfter(now())) {
-        throw const AccountAccessException(
-          'Unable to verify this purchase or restore.',
-        );
-      }
-      final currentId = await currentRevenueCatId();
-      _check(revision, uid);
-      if (currentId != permit.revenueCatId) {
-        throw const AccountAccessException(
-          'Your purchases need account recovery before continuing. No purchases have been moved.',
-        );
-      }
-      if (!permit.expiresAt.isAfter(now())) {
-        throw const AccountAccessException(
-          'Account verification expired. Please try again.',
-        );
-      }
+      await _prepareIdentity(action, revision, uid);
       await operation();
       _check(revision, uid);
       final afterId = await currentRevenueCatId();

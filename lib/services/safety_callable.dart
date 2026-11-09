@@ -9,7 +9,16 @@ class SafetyCallable {
   final String name;
   final HttpsCallableOptions? options;
   SafetyCallable(this.name, {this.options});
-  Future<HttpsCallableResult<dynamic>> call(dynamic data) =>
-      PersonalizationSafety(UserProfileRepo().getProfile).run(() =>
-          FirebaseFunctions.instance.httpsCallable(name, options: options).call(data));
+  Future<HttpsCallableResult<dynamic>> call(dynamic data) async {
+    if (const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) {
+      throw StateError(
+        'Personalized AI is unavailable in this billing test build.',
+      );
+    }
+    return PersonalizationSafety(UserProfileRepo().getProfile).run(
+      () => FirebaseFunctions.instance
+          .httpsCallable(name, options: options)
+          .call(data),
+    );
+  }
 }

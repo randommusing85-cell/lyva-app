@@ -36,6 +36,15 @@ class AccountScreen extends ConsumerWidget {
                 if (connected || auth.needsSignOutRetry) ...[
                   if (connected && auth.signedInEmail != null)
                     Text(auth.signedInEmail!),
+                  if (connected &&
+                      const bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD')) ...[
+                    const SizedBox(height: 12),
+                    const Text('Sandbox tester ID'),
+                    SelectableText(session.uid!),
+                    const Text(
+                      'Use this ID to review your test account. It does not enable purchases or transfer existing subscriptions.',
+                    ),
+                  ],
                   if (connected)
                     const Text(
                       'Subscription access is verified separately from sign-in.',

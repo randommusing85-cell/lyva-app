@@ -3,7 +3,15 @@
 set -euo pipefail
 fail() { echo "error: $*" >&2; exit 1; }
 [[ "${CI_XCODE_CLOUD:-}" == TRUE ]] || fail 'Run only inside Xcode Cloud, not on a personal Mac.'
-[[ "${CI_BRANCH:-}" == integration/cross-platform-2026-11-09 ]] || fail 'Unexpected branch; this signing workflow is branch-scoped.'
+case "${CI_BRANCH:-}" in
+  integration/cross-platform-2026-11-09)
+    [[ -z "${LYVA_PRIVATE_SANDBOX_BUILD:-}" ]] || fail 'Ordinary integration builds must not enable sandbox mode.'
+    ;;
+  sandbox/ken-ios-2026-11-09)
+    [[ "${LYVA_PRIVATE_SANDBOX_BUILD:-}" == apple-billing ]] || fail 'Dedicated sandbox branch requires explicit apple-billing mode.'
+    ;;
+  *) fail 'Unexpected branch; this signing workflow is branch-scoped.' ;;
+esac
 [[ -z "${CI_PULL_REQUEST_NUMBER:-}" ]] || fail 'Pull-request builds must not use this signing workflow.'
 [[ "${CI_BUILD_NUMBER:-}" =~ ^[1-9][0-9]{0,3}$ ]] || fail 'CI_BUILD_NUMBER must be an integer from 15 to 9999.'
 (( CI_BUILD_NUMBER > 14 )) || fail 'Set Xcode Cloud Next Build Number above 14 and above every Apple-uploaded build.'
@@ -69,8 +77,12 @@ flutter pub get --enforce-lockfile
 # Existing warnings/info remain visible; analyzer errors and test failures block archive.
 flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 flutter test --no-pub
+source ios/ci_scripts/sandbox_build_flags.sh
+if [[ -n "${LYVA_PRIVATE_SANDBOX_BUILD:-}" ]]; then
+  flutter test --no-pub --dart-define=LYVA_SANDBOX_TEST_BUILD=true test/sandbox_build_test.dart
+fi
 flutter build ios --release --config-only --no-codesign --no-pub \
-  --build-name=1.0.0 --build-number="$CI_BUILD_NUMBER"
+  --build-name=1.0.0 --build-number="$CI_BUILD_NUMBER" "${LYVA_BUILD_FLAGS[@]}"
 (cd ios && pod install --deployment)
 git diff --exit-code -- pubspec.lock ios/Podfile.lock
 # Xcode reads Flutter's generated absolute SDK path during its later build phase.
