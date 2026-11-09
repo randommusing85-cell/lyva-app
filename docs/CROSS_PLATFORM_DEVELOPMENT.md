@@ -25,17 +25,17 @@ Do not commit SDK paths, signing keys, device data, caches, or build outputs.
   community account-deletion behavior still need validation. This is not a release.
 
 ## Build-only workflow
-`.github/workflows/lyva-build.yml` is manual-only and uses immutable Action SHAs.
+`.github/workflows/lyva-build.yml` runs on pushes only to `integration/cross-platform-2026-11-09` and uses immutable Action SHAs.
 It runs tests/analysis, builds a development Android APK and an iOS simulator ZIP,
 and retains artifacts for7days. It has no store-upload, deployment, signing-secret,
 credential-persistence or distribution steps. An iOS simulator ZIP is not an IPA
 and cannot be installed on a physical iPhone.
 
-GitHub requires the workflow to exist on the default branch before manual
-`workflow_dispatch` is available. Pushing this candidate branch alone does NOT
-make the button available. Next review the workflow and either install only that
-workflow on default branch before dispatching this branch, or deliberately approve
-branch/PR build triggers. Do not merge application code or broaden triggers silently.
+Pushes to this exact integration branch trigger build checks without modifying main.
+Manual `workflow_dispatch` still requires the workflow on the default branch; it is
+not the activation mechanism used here. Do not broaden branch triggers or add release
+actions silently. Standard GitHub-hosted runners are used for this public repository;
+no larger/paid runner or third-party paid build service is configured.
 
 Analysis errors fail; warnings/info are reported but not fatal, including future
 warnings. This is not a baseline-delta CI gate. Dependency locks are enforced;

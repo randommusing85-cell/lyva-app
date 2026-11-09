@@ -1,7 +1,10 @@
 # Reconciled candidate; hosted CI execution is not yet verified.
-# Manual, build-only. No signing credentials, store uploads or deployment.
+# Branch-scoped build-only. No signing credentials, store uploads or deployment.
 name: Lyva build checks
 on:
+  push:
+    branches:
+      - integration/cross-platform-2026-11-09
   workflow_dispatch:
 permissions:
   contents: read
