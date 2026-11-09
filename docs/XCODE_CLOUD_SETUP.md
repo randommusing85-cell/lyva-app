@@ -60,3 +60,13 @@ References:
 - https://docs.flutter.dev/deployment/cd#xcode-cloud
 - https://developer.apple.com/documentation/xcode/writing-custom-build-scripts
 - https://developer.apple.com/documentation/xcode/environment-variable-reference
+
+## Cloud build 15 bootstrap correction
+
+Build 15 stopped before app compilation: its arm64 host supplied x86_64 Homebrew
+Ruby, but bigdecimal's native extension was built for arm64. The bootstrap now
+reads Ruby's own `RbConfig::CONFIG["target_cpu"]` and sets architecture flags for
+all native gem compilation (including bigdecimal and nkf) in an isolated subshell.
+It explicitly loads bigdecimal, nkf, ffi and CocoaPods with the same selected Ruby
+that the `pod` wrapper uses. Compiler flags do not leak into Flutter/iOS builds.
+This corrects the observed mismatch; success still requires a fresh cloud run.

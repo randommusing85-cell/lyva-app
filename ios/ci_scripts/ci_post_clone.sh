@@ -33,11 +33,29 @@ brew list --versions ruby@3.4 >/dev/null 2>&1 || brew install ruby@3.4
 export PATH="$(brew --prefix ruby@3.4)/bin:$PATH"
 export GEM_HOME="$TOOLS/gems"
 export GEM_PATH="$GEM_HOME"
-gem install cocoapods --version 1.16.2 --no-document
+# Apple's arm64 host can supply an x86_64 Homebrew Ruby. Native extensions
+# must target the interpreter, not uname/clang's default host architecture.
+export LYVA_CI_RUBY="$(command -v ruby)"
+RUBY_ARCH="$("$LYVA_CI_RUBY" -r rbconfig -e 'print RbConfig::CONFIG.fetch("target_cpu")')"
+case "$RUBY_ARCH" in
+  arm64|aarch64) RUBY_ARCH=arm64 ;;
+  x86_64) ;;
+  *) fail "Unsupported Ruby target architecture: $RUBY_ARCH" ;;
+esac
+echo "CocoaPods Ruby: $LYVA_CI_RUBY ($RUBY_ARCH); host: $(uname -m)"
+(
+  # Scope compiler flags to Ruby gems; never leak x86_64 into the iOS archive.
+  export ARCHFLAGS="-arch $RUBY_ARCH"
+  export CFLAGS="-arch $RUBY_ARCH" CXXFLAGS="-arch $RUBY_ARCH"
+  export LDFLAGS="-arch $RUBY_ARCH"
+  "$LYVA_CI_RUBY" -S gem install cocoapods --version 1.16.2 --no-document
+)
+# Fail here, before Flutter/build work, if any native dependency cannot load.
+"$LYVA_CI_RUBY" -r rubygems -e 'gem "cocoapods", "=1.16.2"; require "bigdecimal"; require "nkf"; require "ffi"; require "cocoapods"; puts "CocoaPods native extensions loaded successfully"'
 mkdir -p "$TOOLS/bin"
 cat > "$TOOLS/bin/pod" <<'POD'
 #!/bin/bash
-exec ruby -r rubygems -e 'gem "cocoapods", "=1.16.2"; load Gem.bin_path("cocoapods", "pod", "=1.16.2")' -- "$@"
+exec "${LYVA_CI_RUBY:?Missing selected Ruby}" -r rubygems -e 'gem "cocoapods", "=1.16.2"; load Gem.bin_path("cocoapods", "pod", "=1.16.2")' -- "$@"
 POD
 chmod +x "$TOOLS/bin/pod"
 export PATH="$TOOLS/bin:$PATH"
