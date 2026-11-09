@@ -46,7 +46,13 @@ jobs:
       - name: Install exact Android build dependencies
         shell: bash
         run: |
-          sdkmanager 'platforms;android-36' 'platforms;android-34' 'build-tools;35.0.0' 'ndk;28.2.13676358' 'cmake;3.22.1'
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$SDKMANAGER" ]]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort | tail -1)"
+          fi
+          test -x "$SDKMANAGER" || { echo 'Android command-line tools are missing from this runner image.'; exit 1; }
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" 'platforms;android-36' 'platforms;android-34' 'build-tools;35.0.0' 'ndk;28.2.13676358' 'cmake;3.22.1'
           # No blanket license acceptance. Missing terms must be reviewed separately.
       - name: Install pinned Flutter
         shell: bash
@@ -101,15 +107,37 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Verify CocoaPods
         run: test "$(pod --version)" = '1.16.2'
-      - run: flutter build ios --simulator --debug --no-pub
+      - name: Configure iOS simulator build
+        run: flutter build ios --simulator --debug --config-only --no-pub
+      - name: Install locked iOS Pods
+        working-directory: ios
+        run: pod install --deployment
+      - name: Build Apple Silicon simulator workspace
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/lyva-derived" \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO build 2>&1 | tee "$RUNNER_TEMP/lyva-ios-build.log"
+      - name: Preserve iOS build diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lyva-ios-build-log
+          path: ${{ runner.temp }}/lyva-ios-build.log
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Reject CocoaPods lockfile drift
         if: always()
         run: git diff --exit-code -- ios/Podfile.lock
       - name: Package simulator app preserving bundle structure
-        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app "$RUNNER_TEMP/lyva-ios-simulator.zip"
+        run: ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/lyva-derived/Build/Products/Debug-iphonesimulator/Runner.app" "$RUNNER_TEMP/lyva-ios-simulator.zip"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: lyva-ios-simulator
+          name: lyva-ios-simulator-arm64
           path: ${{ runner.temp }}/lyva-ios-simulator.zip
           if-no-files-found: error
           retention-days: 7
