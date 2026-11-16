@@ -317,6 +317,7 @@ final accountBackendProvider = Provider<AccountBackend>(
 );
 final accountAccessServiceProvider = Provider<AccountAccessService>(
   (ref) => AccountAccessService(
+    isolatedSandboxIdentity: isolatedSandboxIdentityEnabled,
     session: ref.read(accountSessionProvider),
     backend: ref.watch(accountBackendProvider),
     currentRevenueCatId: () => Purchases.appUserID,

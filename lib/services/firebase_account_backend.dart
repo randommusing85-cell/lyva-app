@@ -13,7 +13,11 @@ AccountBackend createFirebaseAccountBackend() {
   const project = String.fromEnvironment('LYVA_AUTH_PROJECT_ID');
   const region = String.fromEnvironment('LYVA_ACCOUNT_FUNCTIONS_REGION');
   const policy = String.fromEnvironment('LYVA_BILLING_POLICY_REVISION');
-  if (!reviewed ||
+  const isolatedRequested = bool.fromEnvironment(
+    'LYVA_ISOLATED_SANDBOX_IDENTITY',
+  );
+  if ((isolatedRequested && !isolatedSandboxIdentityEnabled) ||
+      !reviewed ||
       !sandbox ||
       project.isEmpty ||
       region.isEmpty ||
@@ -27,6 +31,7 @@ AccountBackend createFirebaseAccountBackend() {
   final functions = FirebaseFunctions.instanceFor(app: app, region: region);
   return CallableAccountBackend(
     policyRevision: policy,
+    isolatedSandboxIdentity: isolatedSandboxIdentityEnabled,
     invoke: (name, data) async {
       final user = auth.currentUser;
       if (user == null ||

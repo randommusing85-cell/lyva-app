@@ -10,11 +10,13 @@ typedef AccountCallable =
 class CallableAccountBackend implements AccountBackend {
   final AccountCallable invoke;
   final String policyRevision;
+  final bool isolatedSandboxIdentity;
   final DateTime Function() now;
 
   CallableAccountBackend({
     required this.invoke,
     required this.policyRevision,
+    this.isolatedSandboxIdentity = false,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
 
@@ -68,12 +70,19 @@ class CallableAccountBackend implements AccountBackend {
       'action': action.name,
     });
     final uid = _string(data, 'uid');
-    if (data['action'] != action.name || data['revenueCatId'] != uid) {
+    final billingId = _string(data, 'revenueCatId');
+    if (data['action'] != action.name ||
+        !acceptsBillingIdentity(
+          uid,
+          billingId,
+          policyRevision,
+          isolatedSandboxIdentity,
+        )) {
       throw _failure;
     }
     return BillingPermit(
       uid: uid,
-      revenueCatId: uid,
+      revenueCatId: billingId,
       action: action,
       policyRevision: policyRevision,
       expiresAt: _expiry(data),

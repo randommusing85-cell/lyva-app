@@ -8,7 +8,7 @@ case "${CI_BRANCH:-}" in
     [[ -z "${LYVA_PRIVATE_SANDBOX_BUILD:-}" ]] || fail 'Ordinary integration builds must not enable sandbox mode.'
     ;;
   sandbox/ken-ios-2026-11-09)
-    [[ "${LYVA_PRIVATE_SANDBOX_BUILD:-}" == apple-billing ]] || fail 'Dedicated sandbox branch requires explicit apple-billing mode.'
+    [[ "${LYVA_PRIVATE_SANDBOX_BUILD:-}" == apple-billing || "${LYVA_PRIVATE_SANDBOX_BUILD:-}" == apple-isolated-billing ]] || fail 'Dedicated sandbox branch requires an explicit reviewed Apple sandbox mode.'
     ;;
   *) fail 'Unexpected branch; this signing workflow is branch-scoped.' ;;
 esac
@@ -77,9 +77,13 @@ flutter pub get --enforce-lockfile
 # Existing warnings/info remain visible; analyzer errors and test failures block archive.
 flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 flutter test --no-pub
+python3 test/isolated_sandbox_flags_test.py
 source ios/ci_scripts/sandbox_build_flags.sh
 if [[ -n "${LYVA_PRIVATE_SANDBOX_BUILD:-}" ]]; then
   flutter test --no-pub --dart-define=LYVA_SANDBOX_TEST_BUILD=true test/sandbox_build_test.dart
+fi
+if [[ "${LYVA_PRIVATE_SANDBOX_BUILD:-}" == apple-isolated-billing ]]; then
+  flutter test --no-pub "${LYVA_BUILD_FLAGS[@]}" --dart-define=EXPECT_ISOLATED_GATE=true test/isolated_sandbox_build_gate_test.dart
 fi
 flutter build ios --release --config-only --no-codesign --no-pub \
   --build-name=1.0.0 --build-number="$CI_BUILD_NUMBER" "${LYVA_BUILD_FLAGS[@]}"

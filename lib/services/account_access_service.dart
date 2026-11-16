@@ -1,5 +1,29 @@
 import 'package:flutter/foundation.dart';
 
+const isolatedSandboxBillingPolicy = 'ios-single-tester-isolated-sandbox-v1';
+
+// This switch can never enable the isolated identity path in a normal build.
+const isolatedSandboxIdentityEnabled =
+    bool.fromEnvironment('LYVA_SANDBOX_TEST_BUILD') &&
+    bool.fromEnvironment('LYVA_ISOLATED_SANDBOX_IDENTITY') &&
+    String.fromEnvironment('LYVA_BILLING_POLICY_REVISION') ==
+        isolatedSandboxBillingPolicy;
+
+// Callers must explicitly opt in; existing/default callers require UID equality.
+bool acceptsBillingIdentity(
+  String uid,
+  String id,
+  String policy,
+  bool isolated,
+) {
+  if (!isolated) return id == uid;
+  return policy == isolatedSandboxBillingPolicy &&
+      id != uid &&
+      RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+      ).hasMatch(id);
+}
+
 enum BillingAction { purchase, restore }
 
 enum VerifiedTier { essentials, premium }
@@ -80,6 +104,7 @@ class AccountAccessService {
   final Future<String> Function() currentRevenueCatId;
   final DateTime Function() now;
   final Future<void> Function(String uid)? initializeRevenueCat;
+  final bool isolatedSandboxIdentity;
   bool _billingInFlight = false;
   bool get billingInFlight => _billingInFlight;
   AccountAccessService({
@@ -87,6 +112,7 @@ class AccountAccessService {
     required this.backend,
     required this.currentRevenueCatId,
     this.initializeRevenueCat,
+    this.isolatedSandboxIdentity = false,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
 
@@ -137,7 +163,7 @@ class AccountAccessService {
     }
   }
 
-  Future<void> _prepareIdentity(
+  Future<String> _prepareIdentity(
     BillingAction action,
     int revision,
     String uid,
@@ -145,7 +171,12 @@ class AccountAccessService {
     final permit = await backend.prepareBilling(action);
     _check(revision, uid);
     if (permit.uid != uid ||
-        permit.revenueCatId != uid ||
+        !acceptsBillingIdentity(
+          uid,
+          permit.revenueCatId,
+          permit.policyRevision,
+          isolatedSandboxIdentity,
+        ) ||
         permit.action != action ||
         permit.policyRevision.isEmpty ||
         !permit.expiresAt.isAfter(now())) {
@@ -153,7 +184,7 @@ class AccountAccessService {
         'Unable to verify this purchase or restore.',
       );
     }
-    await initializeRevenueCat?.call(uid);
+    await initializeRevenueCat?.call(permit.revenueCatId);
     _check(revision, uid);
     final currentId = await currentRevenueCatId();
     _check(revision, uid);
@@ -167,6 +198,7 @@ class AccountAccessService {
         'Account verification expired. Please try again.',
       );
     }
+    return permit.revenueCatId;
   }
 
   Future<VerifiedPremiumAccess> billing(
@@ -182,12 +214,12 @@ class AccountAccessService {
     }
     _billingInFlight = true;
     try {
-      await _prepareIdentity(action, revision, uid);
+      final billingId = await _prepareIdentity(action, revision, uid);
       await operation();
       _check(revision, uid);
       final afterId = await currentRevenueCatId();
       _check(revision, uid);
-      if (afterId != uid) {
+      if (afterId != billingId) {
         throw const AccountAccessException(
           'Your purchase account changed. Please verify access again.',
         );
